@@ -20,7 +20,7 @@ class MapRepoExternalTools:
     def __init__(self):
         self.git_exe = shutil.which('git')
         self.gh_cli_exe = shutil.which('gh')
-        self.maptools_exe = shutil.which('maptools', path=os.getcwd())
+        self.maptools_exe = shutil.which('maptools') or shutil.which('maptools', path=os.getcwd())
 
 def generate_map_preview_png(map_package_fullpath: str, png_output_fullpath: str, tools: MapRepoExternalTools):
     maptools_genpreview_result = subprocess.run([tools.maptools_exe, 'package', 'genpreview', '--playercolors=wz', map_package_fullpath, png_output_fullpath], stdout=subprocess.PIPE)
