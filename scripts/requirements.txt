@@ -1,0 +1,4 @@
+license_expression==30.1.1
+natsort==8.4.0
+PyJWT[crypto]==2.8.0
+requests==2.31.0
