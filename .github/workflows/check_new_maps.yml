@@ -1,0 +1,164 @@
+# A reusable workflow for use with map repos to check incoming PRs and/or pushes
+name: Check New Maps
+
+on:
+  workflow_call:
+    inputs:
+      mapdb_repo:
+        description: 'The map database repo URL (that contains the configuration and scripts)'
+        default: 'https://github.com/Warzone2100/maps-database.git'
+        required: false
+        type: string
+      mapdb_repo_main_branch:
+        description: 'The main branch for the map database repo'
+        default: 'main'
+        required: false
+        type: string
+
+jobs:
+  check_new_maps:
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    name: 'check.new.maps'
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          path: 'main'
+
+      - name: Get map database / scripts repo
+        env:
+          MAP_DB_REPO_URL: ${{ inputs.mapdb_repo }}
+          MAP_DB_REPO_MAIN_BRANCH: ${{ inputs.mapdb_repo_main_branch }}
+        run: |
+          git clone --branch "${MAP_DB_REPO_MAIN_BRANCH}" --depth 1 --single-branch -- "${MAP_DB_REPO_URL}" "map-db"
+      
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip' # caching pip dependencies
+      
+      - name: Install map script dependencies
+        id: dependencies
+        env:
+          MAP_DB_REPO_PATH: '${{ github.workspace }}/map-db'
+        run: |
+          pip install -r "${MAP_DB_REPO_PATH}/scripts/requirements.txt"
+          source "${MAP_DB_REPO_PATH}/.ci/github/install_maptools.sh"
+          
+      - name: Determine config
+        id: config
+        shell: bash
+        run: |
+          # Parse from the repo name (expecting: "<org>/maps-<number>p" (followed by anything))
+          map_repo_name_regex="^.*/maps-([0-9]+)p.*"
+          if [[ "${GITHUB_REPOSITORY}" =~ $map_repo_name_regex ]]; then
+            expected_max_players="${BASH_REMATCH[1]}"
+          else
+            # FUTURE: Could also support a .map-config.json file in the repo root, if needed
+            echo "Rep name (\"${GITHUB_REPOSITORY}\") does not follow the expected map repo name pattern of \"{org}/maps-{players}p*\""
+            exit 1
+          fi
+          echo "EXPECTED_MAX_PLAYERS=${expected_max_players}"
+          echo "EXPECTED_MAX_PLAYERS=${expected_max_players}" >> "$GITHUB_OUTPUT"
+
+      - name: Check changed / added map folders
+        env:
+          REPO_PATH: '${{ github.workspace }}/main'
+          TEMP_OUTPUT_DIR: '${{ github.workspace }}/tmp-output'
+          DEFAULT_BRANCH: main
+          MAP_DB_REPO_PATH: '${{ github.workspace }}/map-db'
+          EXPECTED_MAX_PLAYERS: '${{ steps.config.outputs.EXPECTED_MAX_PLAYERS }}'
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          
+          # Fix SHA for PR event
+          # (Github sha on PR events is not the latest commit.)
+          # https://docs.github.com/en/actions/reference/events-that-trigger-workflows#pull_request
+          if [ "${GITHUB_EVENT_NAME}" == "pull_request" ]; then
+            GITHUB_SHA=$(jq -r .pull_request.head.sha <"${GITHUB_EVENT_PATH}")
+          fi
+          
+          git config --global --add safe.directory "${REPO_PATH}" 2>&1
+          
+          # Switch to default branch to get a list of files that have changed
+          SWITCH_TO_DEFAULT_BRANCH_RESULTS=$(
+            git -C "${REPO_PATH}" pull --quiet
+            git -C "${REPO_PATH}" checkout --progress --force "${GITHUB_SHA}" 2>&1
+            git -C "${REPO_PATH}" checkout "${DEFAULT_BRANCH}" 2>&1
+          )
+          ERROR_CODE=$?
+          if [ ${ERROR_CODE} -ne 0 ]; then
+            # Error
+            echo "::error::Failed to switch to ${DEFAULT_BRANCH} branch to get changed files!"
+            echo "[${SWITCH_TO_DEFAULT_BRANCH_RESULTS}]"
+            exit 1
+          fi
+          
+          if [ "${GITHUB_EVENT_NAME}" == "push" ]; then
+            # Get list of changed folders in commit
+            GIT_UNSHALLOW_RESULT=$(git -C "${REPO_PATH}" fetch --unshallow)
+            CHANGED_FOLDERS_CMD_RESULT=$(git -C "${REPO_PATH}" diff --dirstat=files,0 ${GITHUB_SHA}^...${GITHUB_SHA} --diff-filter=d | sed -E 's/^[ 0-9.]+% //g' | sort | uniq)
+          else
+            # Get list of changed folders in PR
+            CHANGED_FOLDERS_CMD_RESULT=$(git -C "${REPO_PATH}" diff --dirstat=files,0 ${DEFAULT_BRANCH}...${GITHUB_SHA} --diff-filter=d | sed -E 's/^[ 0-9.]+% //g' | sort | uniq)
+          fi
+          
+          ERROR_CODE=$?
+          if [ ${ERROR_CODE} -ne 0 ]; then
+            # Error
+            echo "::error::Failed to get changed files diff!"
+            echo "[${CHANGED_FOLDERS_CMD_RESULT}]"
+            exit 1
+          fi
+          
+          mapfile -t CHANGED_FOLDER_ARRAY < <(echo -n "$CHANGED_FOLDERS_CMD_RESULT")
+          
+          # Switch back to the event commit
+          SWITCH_BACK_RESULTS=$(git -C "${REPO_PATH}" checkout --progress --force "${GITHUB_SHA}" 2>&1)
+          ERROR_CODE=$?
+          if [ ${ERROR_CODE} -ne 0 ]; then
+            # Error
+            echo "::error::Failed to switch back to event commit!"
+            echo "[${SWITCH_BACK_RESULTS}]"
+            exit 1
+          fi
+          
+          if [ ${#CHANGED_FOLDER_ARRAY[@]} -eq 0 ]; then
+            echo "::notice::No changed folders found"
+            exit 0
+          fi
+          
+          num_map_folders=0
+          for FOLDER in "${CHANGED_FOLDER_ARRAY[@]}"; do
+            if [[ "$FOLDER" =~ ^maps/.+ ]]; then
+              echo "::notice::Will validate: ${FOLDER}"
+              # Output full folder path to a file
+              echo "${REPO_PATH}/${FOLDER}" >> "./map_list_test.txt"
+              num_map_folders=$((num_map_folders + 1))
+            else
+              echo "::notice::Ignoring non-maps/* changed path: ${FOLDER}"
+            fi
+          done
+          
+          if [[ ${num_map_folders} -eq 0 ]]; then
+            echo "::warning::No new or changed map folders found?"
+            exit 0
+          fi
+          
+          if [ "${GITHUB_EVENT_NAME}" == "pull_request" ]; then
+            if [[ ${num_map_folders} -gt 100 ]]; then
+              echo "::error::No more than 100 maps may be included in a single PR"
+              exit 1
+            fi
+          fi
+          
+          "${MAP_DB_REPO_PATH}/scripts/validate_new_map.py" --map-repos-config "${MAP_DB_REPO_PATH}/config/map-repos-config.json" --output-temp-folder "${TEMP_OUTPUT_DIR}" --local-map-repo "${GITHUB_REPOSITORY}@${REPO_PATH}" --expected-players "${EXPECTED_MAX_PLAYERS}" map-list "./map_list_test.txt" >> $GITHUB_STEP_SUMMARY
+          VALIDATE_RESULT_CODE=$?
+          
+          if [ ${VALIDATE_RESULT_CODE} -ne 0 ]; then
+            # Error
+            echo "::error::Validation failed"
+          fi
+          exit ${VALIDATE_RESULT_CODE}
