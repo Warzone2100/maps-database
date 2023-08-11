@@ -1,0 +1,14 @@
+{
+  "asset-url-templates": {
+    "download": [
+      "https://github.com/Warzone2100/maps-{{download/repo}}/releases/download/{{download/path}}"
+    ],
+    "preview": {
+      "2d": "https://assets.maps.wz2100.net/v1/maps/{{download/hash}}/preview.png"
+    },
+    "readme": {
+      "en": "https://assets.maps.wz2100.net/v1/maps/{{download/hash}}/readme.md"
+    },
+    "info": "https://assets.maps.wz2100.net/v1/maps/{{download/hash}}.json"
+  }
+}
