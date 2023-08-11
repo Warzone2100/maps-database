@@ -1,0 +1,170 @@
+name: Update Map Database
+
+on:
+  workflow_run:
+    workflows: [Scheduled Map Update]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency: update_map_database
+
+permissions:
+  contents: read
+
+jobs:
+  update_map_database:
+    environment: deploy_updates
+    runs-on: ubuntu-latest
+    name: 'Do Update'
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v3
+        with:
+          ref: main
+          path: map-db
+      
+      - name: Checkout deploy repo + branch
+        uses: actions/checkout@v3
+        with:
+          repository: Warzone2100/maps-database-site
+          ref: build
+          path: deploy
+          persist-credentials: false
+      
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip' # caching pip dependencies
+      
+      - name: Install dependencies
+        id: dependencies
+        env:
+          MAP_DB_REPO_PATH: '${{ github.workspace }}/map-db'
+        run: |
+          pip install -r "${MAP_DB_REPO_PATH}/scripts/requirements.txt"
+          source "${MAP_DB_REPO_PATH}/.ci/github/install_maptools.sh"
+          sudo apt-get install -y pngquant optipng
+
+      - name: Prepare output dirs
+        id: prepare_folders
+        env:
+          MAP_DB_REPO_PATH: '${{ github.workspace }}/map-db'
+        run: |
+          ASSETS_UPLOAD_DIR="${GITHUB_WORKSPACE}/map_assets_upload_dir"
+          mkdir -p "${ASSETS_UPLOAD_DIR}"
+          echo "ASSETS_UPLOAD_DIR=${ASSETS_UPLOAD_DIR}" >> $GITHUB_OUTPUT
+          
+          TEMP_WORKING_DIR="${GITHUB_WORKSPACE}/temp/working_dir"
+          mkdir -p "${TEMP_WORKING_DIR}"
+          echo "TEMP_WORKING_DIR=${TEMP_WORKING_DIR}" >> $GITHUB_OUTPUT
+
+      - name: 'Process new maps & update database'
+        id: build
+        env:
+          MAP_DB_REPO_PATH: '${{ github.workspace }}/map-db'
+          MAP_DB_DEPLOY_PATH: '${{ github.workspace }}/deploy'
+          ASSETS_UPLOAD_DIR: '${{ steps.prepare_folders.outputs.ASSETS_UPLOAD_DIR }}'
+          TEMP_WORKING_DIR: '${{ steps.prepare_folders.outputs.TEMP_WORKING_DIR }}'
+          GH_TOKEN: ${{ github.token }}
+          WZ_GH_APP_MAPREPO_MANAGER_APP_ID: ${{ secrets.WZ_GH_APP_MAPREPO_MANAGER_APP_ID }}
+          WZ_GH_APP_MAPREPO_MANAGER_PRIVATE_KEY_SECRET: ${{ secrets.WZ_GH_APP_MAPREPO_MANAGER_PRIVATE_KEY_SECRET }}
+          # Use the bot as committer for any new map database site deploy commits
+          # See: https://github.com/orgs/community/discussions/24664
+          GIT_COMMITTER_NAME: 'wz2100-map-database-site-deploy[bot]'
+          GIT_COMMITTER_EMAIL: '142054653+wz2100-map-database-site-deploy[bot]@users.noreply.github.com'
+        run: |
+          map_db_data_root="${MAP_DB_DEPLOY_PATH}/api"
+          map_db_site_template_src="${MAP_DB_REPO_PATH}/site_template"
+          
+          # Backup key folders we must preserve
+          map_db_data_root_backup="./deploy-base-backup"
+          mkdir -p "${map_db_data_root_backup}"
+          # - Backup data root (api/)
+          if [ -d "${map_db_data_root}" ]; then
+            cp -R -a "${map_db_data_root}/." "${map_db_data_root_backup}/"
+          fi
+          
+          # Create a new orphaned branch
+          git -C "${MAP_DB_DEPLOY_PATH}" checkout --orphan new_build
+          # Clear the branch
+          git -C "${MAP_DB_DEPLOY_PATH}" rm -rf .
+          # Copy the site template contents into the new build branch, excluding anything that would conflict with the api/ folder
+          rsync -avhW --compress-level=0 --exclude 'api/' "${map_db_site_template_src}/" "${MAP_DB_DEPLOY_PATH}"
+          # Restore the data root (api/)
+          mkdir -p "${map_db_data_root}"
+          cp -R -a "${map_db_data_root_backup}/." "${map_db_data_root}/"
+          
+          # Run the process new maps script
+          set +e
+          "${MAP_DB_REPO_PATH}/scripts/process_new_maps.py" --map-repos-config "${MAP_DB_REPO_PATH}/config/map-repos-config.json" --map-db-urls-config "${MAP_DB_REPO_PATH}/config/map-db-urls-config.json" --temp-working-dir "${TEMP_WORKING_DIR}" --map-db-data-root "${map_db_data_root}" --map-db-assets-root "${ASSETS_UPLOAD_DIR}" --map-db-data-root-relurl "/api" --dry-run 
+          ret="$?"
+          if [ $ret -ne 0 ]; then
+            # No new maps processed
+            echo "PROCESS_DEPLOYMENT=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          set -e
+          
+          # Add all files
+          git -C "${MAP_DB_DEPLOY_PATH}" config --local user.email "${GIT_COMMITTER_EMAIL}"
+          git -C "${MAP_DB_DEPLOY_PATH}" config --local user.name "${GIT_COMMITTER_NAME}"
+          git -C "${MAP_DB_DEPLOY_PATH}" add -A
+          timestamp=$(date -u)
+          git -C "${MAP_DB_DEPLOY_PATH}" commit -m "Generate database site: ${timestamp}" || { echo "PROCESS_DEPLOYMENT=false" >> $GITHUB_OUTPUT && exit 0; }
+          echo "PROCESS_DEPLOYMENT=true" >> $GITHUB_OUTPUT
+      
+      - name: Set up known_hosts
+        if: success() && (steps.build.outputs.PROCESS_DEPLOYMENT == 'true')
+        run: |
+          mkdir -p ~/.ssh/
+          # Output of: `ssh-keyscan wzhost2.wz2100.net >> ~/.ssh/known_hosts`
+          cat >> ~/.ssh/known_hosts << 'EOF'
+          wzhost2.wz2100.net ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBH6F0rt3aWl1M1PnONs9zVYd3yqi6L1QaiPsZMNJ/1eyjVTVtBF/GI/7IKVaY1tggiJ98TsBAIKSdoRq/SEdxT0=
+          wzhost2.wz2100.net ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCFptOeyr8J+MGJ+YUC6gbjH8r1FjCMHhX6CDeXwFD7us0E7h2gWDJ+cUMm1B/TAmc8dkIQZ7SPBTW21L70w8eC9NN5DYfR2/iAGTH7KIqkpZ+LRKDbKx2uSetl3960OKGlJ7NbKtrJKKrJ7jKPvyE3SRi88dnmuLHTKExjjyqsB5l2zODa7Wa5fewYFaVR2F9qvHldCQWihMDfokV2QGac5lfMK+ohlGq4FTR4Wq5q6vplF5J/bpCiAN1Qg2Oz1Tsxyc7t7mB9bZ8RnNkBFpx2ao1ijfv/IfGVY3kvUHQnyBh3UTuRFDte/WH46fmJS13pJCfIcq5rBA3F+muLJHOx7pFWk8izpOSoPg7KA72ECnYn9PeIlXHwTWxo39PbOpsH9pj4lQaZola2sqUUwMorCk8a318qRCPR11dvm4fP1Ds6s+8T+OH3QsTjZsqMYah0Q9jGbTKaB0i2TmXFoodZmE76QyoYOqbL5rGjXuTztXsEFXqphnwVIotMY/yOOBc=
+          wzhost2.wz2100.net ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBvuasWL8Kiz9htNhbSOv9V97WRIl/21GLZ9BqqsNEdD
+          EOF
+      
+      - name: Set up SSH Agent
+        if: success() && (steps.build.outputs.PROCESS_DEPLOYMENT == 'true')
+        env:
+          UPLOAD_SSH_KEY: ${{ secrets.WZ_MAP_ASSETS_UPLOAD_SSH_KEY }}
+        run: |
+          eval "$(ssh-agent -s)"
+          set +x
+
+          # Add the private key to SSH agent
+          mkdir -p ~/.ssh/
+          echo "${UPLOAD_SSH_KEY}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-add ~/.ssh/id_ed25519
+
+          # Create a public key file
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > ~/.ssh/id_ed25519.pub
+        
+      - name: Upload assets to server
+        if: success() && (steps.build.outputs.PROCESS_DEPLOYMENT == 'true')
+        env:
+          ASSETS_UPLOAD_DIR: '${{ steps.prepare_folders.outputs.ASSETS_UPLOAD_DIR }}'
+          WZ_MAP_ASSETS_UPLOAD_USERNAME: ${{ secrets.WZ_MAP_ASSETS_UPLOAD_USERNAME }}
+        run: |
+          echo "::group::rsync"
+          rsync -chvzP -rlpt --stats "${ASSETS_UPLOAD_DIR}/" "${WZ_MAP_ASSETS_UPLOAD_USERNAME}@wzhost2.wz2100.net:/"
+          echo "::endgroup::"
+          rm ~/.ssh/id_ed25519
+      
+      - name: Publish changes to deploy repo
+        if: success() && (steps.build.outputs.PROCESS_DEPLOYMENT == 'true')
+        id: publish_deployment
+        working-directory: '${{ github.workspace }}/deploy'
+        env:
+          MAP_DB_REPO_PATH: '${{ github.workspace }}/map-db'
+          GH_TOKEN: ${{ github.token }}
+          WZ_GH_APP_GIT_PUSH_APP_ID: ${{ secrets.WZ_GH_APP_MAPDB_SITE_DEPLOY_APP_ID }}
+          WZ_GH_APP_GIT_PUSH_PRIVATE_KEY_SECRET: ${{ secrets.WZ_GH_APP_MAPDB_SITE_DEPLOY_PRIVATE_KEY_SECRET }}
+        run: |
+          # This git repo should currently be on the new (orphaned) new_build branch
+          # Force-push the local fresh branch with a single commit to the *deploy* branch (should yield a single commit with the latest data)
+          "${MAP_DB_REPO_PATH}/scripts/git_authenticated_push.py" --github-repo "Warzone2100/maps-database-site" --local-branch "new_build" --remote-branch "build" --force
+          echo "PROCESS_DEPLOYMENT=true" >> $GITHUB_OUTPUT
+          echo "Done."
