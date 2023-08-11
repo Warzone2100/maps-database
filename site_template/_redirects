@@ -1,0 +1,1 @@
+/api/v1/maps/:hash/* https://assets.maps.wz2100.net/v1/maps/:hash/:splat
