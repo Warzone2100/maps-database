@@ -51,8 +51,11 @@ class WZMapZipInfo(ReproducibleZipInfo):
 def compress_map_folder(mapFolderPath: str, outputZipPath: str, hashCollisionAvoidanceSalt=None, date_time=DATETIMEZERO):
     with zipfile.ZipFile(outputZipPath, "w") as zf_out:
         # enumerate all files in the map folder
-        for folder, subs, files in os.walk(mapFolderPath):
-            for filename in files:
+        for folder, dirs, files in os.walk(mapFolderPath, topdown=True):
+            dirs.sort() # When topdown=True, we can sort dirs to fix the order they are visited
+            # Sort the files so that "level.json" is always first, followed by stable lexicographical sort
+            sorted_files = sorted(files, key=lambda x:(x!='level.json', x))
+            for filename in sorted_files:
                 # read in each file as binary data
                 fullFilePath = os.path.join(folder, filename)
                 with open(fullFilePath, 'rb') as src:
