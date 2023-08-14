@@ -97,7 +97,7 @@ jobs:
           
           # Run the process new maps script
           set +e
-          "${MAP_DB_REPO_PATH}/scripts/process_new_maps.py" --map-repos-config "${MAP_DB_REPO_PATH}/config/map-repos-config.json" --map-db-urls-config "${MAP_DB_REPO_PATH}/config/map-db-urls-config.json" --temp-working-dir "${TEMP_WORKING_DIR}" --map-db-data-root "${map_db_data_root}" --map-db-assets-root "${ASSETS_UPLOAD_DIR}" --map-db-data-root-relurl "/api" --dry-run 
+          "${MAP_DB_REPO_PATH}/scripts/process_new_maps.py" --map-repos-config "${MAP_DB_REPO_PATH}/config/map-repos-config.json" --map-db-urls-config "${MAP_DB_REPO_PATH}/config/map-db-urls-config.json" --temp-working-dir "${TEMP_WORKING_DIR}" --map-db-data-root "${map_db_data_root}" --map-db-assets-root "${ASSETS_UPLOAD_DIR}" --map-db-data-root-relurl "/api" 
           ret="$?"
           if [ $ret -ne 0 ]; then
             # No new maps processed
