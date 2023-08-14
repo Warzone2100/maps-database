@@ -1,0 +1,1574 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="content-language" content="en" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Warzone 2100 Maps Database</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/css/bootstrap.min.css" integrity="sha512-SbiR/eusphKoMVVXysTKG/7VseWii+Y3FdHrt0EpKgpToZeemhqHeZeLWLhJutz/2ut2Vw1uQEj2MbRF+TVBUA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.5/font/bootstrap-icons.min.css" integrity="sha512-ZnR2wlLbSbr8/c9AgLg3jQPAattCUImNsae6NHYnS9KrIwRdcY9DxFotXhNAKIKbAXlRnujIqUWoXXwqyFOeIQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.22.1/bootstrap-table.min.css" integrity="sha512-CcTkIsZd9q6wsVUGBewW5P1uXFcuI6mAsjEn+T+TJKLebXneMQPj1GpwU9O/dkajlHJj/40UBugBAcWN+eFo+g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.22.1/extensions/sticky-header/bootstrap-table-sticky-header.min.css" integrity="sha512-Jvql/DFZ5ryzEvC+rlNGFL217hEO1/9gjsLR5+k+aUfeNfnpc7kpc3Fu7syUHn8XGCB7wTdSluzujQXcGoTrGA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+      #table-parent.fullscreen {
+          position: fixed;
+          top: 0;
+          left: 0;
+          z-index: 1050;
+          width: 100% !important;
+          background: #fff;
+          height: calc(100vh);
+          overflow-y: scroll;
+          max-width: none;
+          margin-top: 0 !important;
+          padding-top: 1rem;
+      }
+      
+      @media (min-width:576px) {
+        .modal-dialog {
+          margin-top: 4rem;
+        }
+      }
+      
+      .modal-backdrop {
+        --bs-backdrop-opacity: 0.75;
+      }
+      
+      .text-truncated {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      
+      .badge {
+        border-radius: .25rem;
+      }
+      
+      .navbar-brand:hover, .navbar-brand:focus {
+          text-decoration:none
+      }
+      
+      .navbar-brand .navbar-brand-text {
+        display: inline-block;
+        vertical-align: middle;
+        padding-left: 5px;
+      }
+      
+      .maps-table-container {
+        min-height: 200px;
+      }
+      
+      .navbar-brand img {
+        width: 40px;
+      }
+      
+      .info-table-col {
+        padding: 0!important;
+      }
+      
+      .table-dl-button-col {
+        padding: 0!important;
+      }
+      
+      .btn-custom-sm {
+        padding: .15rem .5rem;
+        border-radius: .2rem;
+      }
+      
+      .input-group .form-select {
+        flex-grow:0!important;
+        width:auto!important;
+        min-width:auto!important;
+      }
+      .map-info {
+        padding: 8px;
+      }
+      .script-map-badge {
+      }
+      .map-preview-extra-info-block {
+        margin-top: 1rem;
+      }
+      .map-badges {
+        margin-block-end: 0;
+      }
+      .map-badges .list-inline-item {
+        margin-right: 0;
+      }
+      .map-mod-badge {
+        transform: translateX(-100%)!important;
+      }
+      
+      .image-preview-cell {
+        text-align: center;
+      }
+      .image-preview-cell img {
+        max-width: 100%;
+        object-fit: contain;
+      }
+      
+      .mapCardView .map-badges {
+        height: 1.5em;
+      }
+      .mapCardView:not(.map-type-script) .map-type-script-show {
+        display: none;
+      }
+      .mapCardView .lead {
+        font-size: 1rem;
+      }
+      .mapCardView .actionButtons .btn {
+        margin-top: 10px!important;
+        max-width: 100%!important;
+      }
+      .mapCardView .map-preview {
+        max-height: 156px;
+        image-rendering:-webkit-optimize-contrast;
+        image-rendering: pixelated;
+        object-fit: contain;
+        width: 100%;
+      }
+      
+      .mapDetailsModal .modal-content:not(.map-type-script) .map-type-script-show {
+        display: none;
+      }
+      
+      .mapDetailsModal .btn-close {
+        float: left;
+        position: absolute;
+        right: 0;
+        padding: calc(var(--bs-modal-padding) - var(--bs-modal-footer-gap) * .5);
+      }
+      .mapDetailsModal .map-preview-container {
+        border-top-left-radius: var(--bs-modal-inner-border-radius);
+      }
+      .mapDetailsModal .map-preview {
+        position: relative;
+        width: 100%;
+        height: 400px;
+      }
+      .mapDetailsModal .map-preview img {
+        image-rendering:-webkit-optimize-contrast;
+        image-rendering: pixelated;
+        object-fit: contain;
+        width: 100%;
+        height: 100%;
+      }
+      .mapDetailsModal .additional-authors {
+        color: #656565;
+        font-size: 0.8em;
+        padding-left: 2px;
+      }
+      .bd-callout {
+        padding: 1rem;
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid #e9ecef;
+        border-left-width: .25rem;
+        border-radius: .25rem;
+      }
+      .bd-readme-callout {
+        padding-top: 0.5rem;
+        border-left-color: #aaaaaa;
+      }
+      .bd-map-script-player-balance-callout {
+        margin-top: 0;
+      }
+      .bd-callout-warning {
+        border-left-color: #f0ad4e;
+      }
+
+      .mapDetailsModal .modal-body {
+        padding: 0;
+      }
+      .mapDetailsModal .modal-body .row {
+        margin-left: 0;
+        margin-right: 0;
+      }
+      
+      .spinner-border-sm {
+        --bs-spinner-width: 1em;
+        --bs-spinner-height: 1em;
+        --bs-spinner-border-width: 0.15em;
+      }
+      
+      .accordion-flush .accordion-details:first-child {
+        border-top: 1px solid rgba(0,0,0,0.125)!important;
+      }
+      
+      .accordion-details > .accordion-header > .accordion-button {
+      }
+      
+      .accordion-details > .accordion-header > .accordion-button:focus {
+            box-shadow: none;
+            border-color: rgba(0,0,0,.125);
+      }
+      
+      .accordion-button:not(.collapsed) {
+        color: var(--bs-accordion-btn-color);
+        box-shadow: none;
+        border-bottom: 0;
+      }
+      
+      .accordion-details > .accordion-header > .sm-accordion-button-text {
+        font-size: 0.875rem;
+      }
+      
+      .accordion-details > .accordion-collapse > .accordion-body {
+        font-size: 0.8rem;
+        background-color: rgba(var(--bs-light-rgb),var(--bs-bg-opacity))!important;
+        filter: brightness(98%);
+        border-top: var(--bs-accordion-border-width) solid var(--bs-accordion-border-color);
+      }
+      
+      .mapDetailsModal .modal-body .map-details-container .details-block {
+        overflow-x: auto;
+      }
+      
+      .mapDetailsModal .modal-body .map-details-container .details-description {
+        max-height: 150px;
+        position: relative;
+        font-size: 0.9em;
+      }
+      
+      .mapDetailsModal .modal-body .map-details-container .details-description .details-description-title {
+        color: #999999;
+        font-size: 1.0em;
+        padding-right: 5px;
+        padding-bottom: 5px;
+      }
+      
+      .mapDetailsModal .modal-body .map-details-container .details-description .details-description-contents {
+        color: #777777;
+      }
+      
+      .table-player-balance-details>:not(caption)>*>* {
+        padding: .25rem .75rem;
+      }
+      
+      .mapDetailsModal .modal-lg {
+        max-width: 1000px!important;
+      }
+      /* On screens that are 992px wide or more, go from four columns to two columns */
+      @media (max-width: 1020px) {
+        .mapDetailsModal .modal-lg {
+          width: 95%!important;
+          max-width: 100%!important;
+        }
+      }
+      @media (max-width: 767.98px) {
+        .mapDetailsModal .modal-lg {
+          width: 100vw!important;
+          max-width: none!important;
+          height: 100%;
+          margin: 0;
+        }
+        .mapDetailsModal .map-preview-container {
+          max-height: min(50vh, 400px);
+          min-height: 300px;
+        }
+        .mapDetailsModal .map-preview {
+          height: calc(100% - (2rem + 24px));
+        }
+      }
+      @media (max-width: 991.98px) {
+        .container {
+          max-width: 100%!important;
+        }
+      }
+      
+      #table {
+        visibility: hidden;
+      }
+      
+      .modal-open {
+          padding-right: 0px !important;
+      }
+      
+    </style>
+    <script>
+     /**
+      * String.prototype.replaceAll() polyfill
+      * https://gomakethings.com/how-to-replace-a-section-of-a-string-with-another-one-with-vanilla-js/
+      * @author Chris Ferdinandi
+      * @license MIT
+      */
+     if (!String.prototype.replaceAll) {
+     	String.prototype.replaceAll = function(str, newStr){
+
+     		// If a regex pattern
+     		if (Object.prototype.toString.call(str).toLowerCase() === '[object regexp]') {
+     			return this.replace(str, newStr);
+     		}
+
+     		// If a string
+     		return this.replace(new RegExp(str, 'g'), newStr);
+
+     	};
+     }
+    </script>
+  </head>
+  <body class="bg-light">
+    <nav class="navbar sticky-top navbar-expand-md navbar-dark bg-dark" id="mainNavbar">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">
+          <picture><source type="image/webp" srcset="/img/warzone2100.webp"><img src="/img/warzone2100.png" alt="Warzone 2100 Logo" class="me-2"></picture>
+          <div class="navbar-brand-text">
+            Warzone 2100
+          </div>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul class="navbar-nav me-auto mb-2 ms-2 ms-md-3 mb-md-0">
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="#">Map Database</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="https://github.com/Warzone2100/map-submission/blob/main/docs/submit_map.md" target="_blank" rel="noopener">Submit New</a>
+            </li>
+          </ul>
+          <a class="btn btn-outline-primary btn-block" title="wz2100.net" href="https://wz2100.net" target="_blank" rel="noopener"><i class="bi bi-house-door"></i> wz2100.net</a>
+        </div>
+        
+      </div>
+    </nav>
+    
+    <div class="container">
+      <div class="d-flex align-items-center p-3 mt-3 text-white bg-dark rounded shadow-sm">
+        <div class="lh-1">
+          <h1 class="mb-0 text-white lh-1"><i class="bi bi-map-fill" style="padding-right: 5px;"></i> Maps <span class="fs-6">for Warzone 2100</span></h1>
+        </div>
+      </div>
+    </div>
+      
+    <div id="table-parent" class="container mt-3">
+      <div id="advanced-filters-container" class="collapse filtersToggle">
+        <form class="row gy-2 gx-3 pt-1 align-items-center">
+          <div class="col-auto">
+            <div class="input-group">
+              <span class="input-group-text" id="basic-addon1">Players:</span>
+              <select id="filter-players-mode" class="form-select">
+                <option value="<=">&lt;=</option>
+                <option value="==" selected>==</option>
+                <option value=">=">&gt;=</option>
+              </select>
+              <select id="filter-players" class="form-select">
+                <option selected>*</option>
+                <option>2</option>
+                <option>3</option>
+                <option>4</option>
+                <option>5</option>
+                <option>6</option>
+                <option>7</option>
+                <option>8</option>
+                <option>9</option>
+                <option>10</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-auto">
+            <div class="input-group">
+              <span class="input-group-text" id="basic-addon1">Size:</span>
+              <select id="filter-size-mode" class="form-select">
+                <option value="<=">&lt;=</option>
+                <option value="==">==</option>
+                <option value=">=" selected>&gt;=</option>
+              </select>
+              <input type="number" maxlength="3" min="1" max="255" step="10" id="filter-size-w" class="form-control flex-grow-1" aria-label="Width" aria-describedby="basic-addon1">
+              <span class="input-group-text" id="basic-addon1">x</span>
+              <input type="number" maxlength="3" min="1" max="255" step="10" id="filter-size-h" class="form-control flex-grow-1" aria-label="Height" aria-describedby="basic-addon1">
+            </div>
+          </div>
+          <div class="col-auto">
+            <div class="input-group">
+              <span class="input-group-text" id="basic-addon1">Oil by player:</span>
+              <select id="filter-oil-by-player-mode" class="form-select">
+                <option value="<=">&lt;=</option>
+                <option value="==">==</option>
+                <option value=">=" selected>&gt;=</option>
+              </select>
+              <input type="number" maxlength="4" min="0" max="300" step="5" id="filter-oil-by-player" class="form-control flex-grow-1" aria-label="Height" aria-describedby="basic-addon1">
+            </div>
+          </div>
+          <div class="col-auto">
+            <div class="input-group">
+              <span class="input-group-text" id="basic-addon1">Scavengers:</span>
+              <select id="filter-scavengers" class="form-select">
+                <option value="*" selected>*</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-auto">
+            <div class="input-group">
+              <span class="input-group-text" id="basic-addon1">Balance:</span>
+              <select id="filter-balance" class="form-select">
+                <option value="*" selected>*</option>
+                <option value="==">==</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-auto">
+            <div class="input-group">
+              <span class="input-group-text" id="basic-addon1">Map type:</span>
+              <select id="filter-map-type" class="form-select">
+                <option value="*" selected>*</option>
+                <option value="normal">Normal</option>
+                <option value="script">Script-Generated</option>
+              </select>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="toolbar">
+        <form id="search-form" class="row gy-2 gx-3 align-items-center">
+          <div class="col-auto">
+            <div class="input-group">
+              <select id="filter-query-type" class="form-select" style="background-color: #e9ecef">
+                <option value="name" selected>Map name:</option>
+                <option value="author">Author:</option>
+              </select>
+              <div id="filter-query-mode-container" class="collapse collapse-horizontal filtersToggle">
+                <select id="filter-query-mode" class="form-select" style="border-radius: 0;">
+                  <option value="contains" selected>Contains</option>
+                  <option value="equals">Equals</option>
+                  <option value="beginsWith">Begins With</option>
+                  <option value="endsWith">Ends With</option>
+                </select>
+              </div>
+              <input type="text" id="filter-query" class="form-control" aria-label="Map name" aria-describedby="basic-addon1">
+              <button type="submit" class="btn btn-secondary map-search-update">Search</button>
+              <button type="button" class="btn btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="visually-hidden">Toggle Dropdown</span>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li class="dropdown-item map-search-update">Update Search</li>
+                <li><hr class="dropdown-divider"></li>
+                <li class="dropdown-item map-search-clear">Clear Search</li>
+                <li class="dropdown-item" data-bs-toggle="collapse" data-bs-target=".filtersToggle">Toggle Advanced Filters</li>
+              </ul>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div id="table-container" class="maps-table-container">
+        <table id="table"
+          data-toolbar=".toolbar"
+          data-pagination="true"
+          data-show-custom-view="true"
+          data-custom-view="customViewFormatter"
+          data-show-custom-view="true"
+          data-custom-view-default-view="true"
+          data-show-columns="true"
+          data-show-columns-toggle-all="true"
+          data-show-columns-search="true"
+          data-sort-reset="true"
+          data-page-size="9"
+          data-buttons="customTableButtons"
+          data-sticky-header="true"
+          data-page-list="[9, 27, 54, 99]">
+          <thead>
+            <tr>
+              <th class="info-table-col" data-field="info" data-formatter="infoFormatter" data-events="actionsEvents" data-align="center" data-switchable="false"></th>
+              <th data-field="previewImage" data-formatter="imageFormatter" data-cell-style="imageCellStyle" data-width="50">Preview</th>
+              <th data-field="name" data-escape="true" data-switchable="false" data-sortable="true">Name</th>
+              <th data-field="size" data-formatter="mapSizeFormatter" data-align="center" data-sortable="true" data-sorter="mapSizeSorter">Size</th>
+              <th data-field="slots" data-escape="true" data-align="center" data-sortable="true">Players</th>
+              <th data-field="scavs" data-escape="true" data-cell-style="scavengersCellStyle" data-align="center" data-sortable="true">Scavs</th>
+              <th data-field="oilWells" data-align="center" data-sortable="true">Oilwells</th>
+              <th data-field="oilWellsByPlayer" data-align="center" data-sortable="true" data-switchable-label="Oilwells (by player)">Oilwells<br/>(by player)</th>
+              <th data-field="player" data-formatter="balanceFormatter" data-align="center">Balance</th>
+              <th data-field="tileset" data-escape="true" data-align="center" data-sortable="true" data-visible="false">Tileset</th>
+              <th data-field="author" data-escape="true" data-align="center" data-sortable="true">Author</th>
+              <th data-field="license" data-escape="true" data-align="center" data-visible="false">License</th>
+              <th class="table-dl-button-col" data-field="actions" data-formatter="actionsFormatter" data-events="actionsEvents" data-align="center" data-switchable="false"></th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+    </div> <!-- "container" -->
+    
+    <div class="container">
+          <footer class="row row-cols-1 row-cols-sm-2 row-cols-md-3 py-5 my-5 border-top">
+            <div class="col mb-3 col-md-5">
+              <p class="text-muted small">
+                Copyright © past-due, Warzone 2100 Project.<br />
+                Licensed under <a href="https://github.com/Warzone2100/maps-database/blob/main/LICENSE" rel="noopener nofollow" data-target="_blank" target="_blank" hreflang="en">GPL-2.0-or-later</a>.<br />
+                <a href="https://github.com/Warzone2100/maps-database/tree/main/site_template" rel="noopener" data-target="_blank" target="_blank">Get the Source.</a>
+              </p>
+              <p class="text-muted small">
+                Powered by <a href="https://www.cloudflare.com" rel="noopener" data-target="_blank" target="_blank">Cloudflare</a>
+              </p>
+              <p class="text-muted pt-1">
+                <a class="btn btn-sm btn-outline-dark btn-block me-2" title="Get Warzone 2100" href="https://wz2100.net" target="_blank" rel="noopener"><i class="bi bi-download"></i> Get Warzone 2100</a>
+                <a class="btn btn-sm btn-outline-secondary btn-block" title="Donate" href="https://donations.wz2100.net" target="_blank" rel="noopener"><i class="bi bi-heart"></i> Donate</a>
+              </p>
+            </div>
+
+            <div class="col mb-3 col-md-1">
+            </div>
+
+            <div class="col mb-3 col-md-3">
+              <h5>Creators</h5>
+              <ul class="nav flex-column">
+                <li class="nav-item mb-2"><a href="https://github.com/Warzone2100/map-submission/blob/main/docs/submit_map.md" class="nav-link p-0 text-muted" target="_blank" rel="noopener nofollow">Submitting a Map</a></li>
+                <li class="nav-item mb-2"><a href="https://github.com/warzone2100/maptools-cli" class="nav-link p-0 text-muted" target="_blank" rel="noopener">Maptools CLI</a></li>
+                <li class="nav-item mb-2"><a href="https://github.com/Warzone2100/maptools-cli/blob/main/README.md#output-map-formats" class="nav-link p-0 text-muted" target="_blank" rel="noopener">About Map Formats</a></li>
+              </ul>
+            </div>
+
+            <div class="col mb-3 col-md-3">
+              <h5>Developers</h5>
+              <ul class="nav flex-column">
+                <li class="nav-item mb-2"><a href="https://github.com/Warzone2100/maps-database/blob/main/docs/API.md" class="nav-link p-0 text-muted" target="_blank" rel="noopener">API Documentation</a></li>
+                <li class="nav-item mb-2"><a href="https://assets.maps.wz2100.net/terms/" class="nav-link p-0 text-muted" target="_blank" rel="noopener nofollow">Terms of Use</a></li>
+              </ul>
+            </div>
+          </footer>
+        </div>
+    
+    <!-- Map Modal -->
+    <template id="mapDetailModalTemplate">
+      <div class="modal-content %MAP_TYPE_CLASS%">
+        <div class="modal-body">
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <div class="row">
+            <div class="col-md-3 col-lg-4 text-start bg-light p-5 pb-3 p-md-3 map-preview-container">
+              <div class="map-preview">
+                <img src="%PREVIEW_IMAGE_URL%" alt="mx-auto">
+              </div>
+              <div class="map-preview-extra-info-block">
+                <ul class="list-inline map-badges text-center">
+                  <li class="list-inline-item map-type-script-show"><i class="bi bi-shuffle text-muted" title="Script-Generated Map"></i> <small class="text-muted">Script-Generated Map</small>
+                  </li>
+                </ul>
+                <div class="text-center">
+                  <span class="badge bg-secondary text-light">Size:</span> <small>{{ row/size/w }} <span class="text-muted" translate="no">x</span> {{ row/size/h }}</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-9 col-lg-8 pt-3 px-4 map-details-container">
+              <h2 class="mb-0 text-truncated" translate="no">{{ row/name }}</h2>
+              <span class="lead">by: <span translate="no">%AUTHOR%</span><span class="additional-authors" translate="no">%ADDITIONAL_AUTHORS%</span></span>
+
+              
+              <div class="accordion mt-3 mb-2" id="accordionAdditionalDetails">
+                <div class="accordion-item accordion-details bg-light details-block">
+                  <div class="accordion-header" id="additionalDetails-headingOne">
+                    <div class="d-flex flex-wrap bg-light">
+                      <div class="p-2 flex-fill text-center">
+                        <h3 class="mb-0"><span class="text-muted fs-5">≤</span> {{ row/slots }}</h3>
+                        <small>Players</small>
+                      </div>
+                      <div class="p-2 flex-fill text-center">
+                        <h3 class="mb-0">{{ row/scavs }}<span class="map-type-script-show text-muted"><sup>*</sup></span></h3>
+                        <small>Scavengers</small>
+                      </div>
+                      <div class="p-2 flex-fill text-center">
+                        <h3 class="mb-0">{{ row/oilWells }} <span class="text-muted">/ <span class="fs-5">%OILBYPLAYER%</span></span><span class="map-type-script-show text-muted"><sup>*</sup></span></h3>
+                        <small>Oil <small class="text-muted"><span translate="no">%</span> player</small></small>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Starting Balance-->
+                <div class="accordion-item accordion-details bg-light details-block">
+                  <div class="accordion-header" id="additionalDetails-headingOne">
+                    <button class="accordion-button bg-light collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseOne" aria-expanded="false" aria-controls="flush-collapseOne">
+                      <div class="bg-light pe-2 m-0 starting-balance-badges">
+                        <span class="map-type-script-show">≈</span>
+
+                        <span class="badge {{ startBalanceVisualAttr/units/class }} text-light">{{ startBalanceVisualAttr/units/desc }} Units</span> 
+                        <span class="badge {{ startBalanceVisualAttr/resourceExtr/class }} text-light">{{ startBalanceVisualAttr/resourceExtr/desc }} Oil</span> 
+                        <span class="badge {{ startBalanceVisualAttr/pwrGen/class }} text-light">{{ startBalanceVisualAttr/pwrGen/desc }} Power Gen</span>
+                        <span class="badge {{ startBalanceVisualAttr/factories/class }} text-light">{{ startBalanceVisualAttr/factories/desc }} Factories</span> 
+                        <span class="badge {{ startBalanceVisualAttr/researchCent/class }} text-light">{{ startBalanceVisualAttr/researchCent/desc }} Research Centers</span>
+                        <span class="badge {{ startBalanceVisualAttr/defStruct/class }} text-light">{{ startBalanceVisualAttr/defStruct/desc }} Def Structs</span>
+                      </div>
+                    </button>
+                  </div>
+                  <div id="flush-collapseOne" class="accordion-collapse collapse" aria-labelledby="additionalDetails-headingOne" data-bs-parent="#accordionAdditionalDetails">
+                    <div class="accordion-body">
+                      <div class="bd-callout bd-map-script-player-balance-callout bd-callout-warning overflow-scroll lh-sm map-type-script-show">
+                        Script-Generated maps may vary / randomize their output every time they are loaded.<br>
+                        These numbers are an example from a single generation run.
+                      </div>
+                      <table class="table table-striped table-player-balance-details">
+                        <thead>
+                          <tr>
+                            <th scope="col" style="font-weight: normal;">Per-Player Starting Balance:</th>
+                            <th scope="col">Eq<span class="map-type-script-show text-muted"><sup>*</sup></span></th>
+                            <th scope="col">Min<span class="map-type-script-show text-muted"><sup>*</sup></span></th>
+                            <th scope="col">Max<span class="map-type-script-show text-muted"><sup>*</sup></span></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <th scope="row">Units</th>
+                            <td>{{ startBalanceVisualAttr/units/desc }}<sup>{{ startBalanceVisualAttr/units/footnoteId }}</sup></td>
+                            <td>{{ row/player/units/min }}</td>
+                            <td>{{ row/player/units/max }}</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">Oil Derricks</th>
+                            <td>{{ startBalanceVisualAttr/resourceExtr/desc }}<sup>{{ startBalanceVisualAttr/resourceExtr/footnoteId }}</sup></td>
+                            <td>{{ row/player/resourceExtr/min }}</td>
+                            <td>{{ row/player/resourceExtr/max }}</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">Power Generators</th>
+                            <td>{{ startBalanceVisualAttr/pwrGen/desc }}<sup>{{ startBalanceVisualAttr/pwrGen/footnoteId }}</sup></td>
+                            <td>{{ row/player/pwrGen/min }}</td>
+                            <td>{{ row/player/pwrGen/max }}</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">Regular Factories</th>
+                            <td>{{ startBalanceVisualAttr/regFact/desc }}<sup>{{ startBalanceVisualAttr/regFact/footnoteId }}</sup></td>
+                            <td>{{ row/player/regFact/min }}</td>
+                            <td>{{ row/player/regFact/max }}</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">VTOL Factories</th>
+                            <td>{{ startBalanceVisualAttr/vtolFact/desc }}<sup>{{ startBalanceVisualAttr/vtolFact/footnoteId }}</sup></td>
+                            <td>{{ row/player/vtolFact/min }}</td>
+                            <td>{{ row/player/vtolFact/max }}</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">Cyborg Factories</th>
+                            <td>{{ startBalanceVisualAttr/cyborgFact/desc }}<sup>{{ startBalanceVisualAttr/cyborgFact/footnoteId }}</sup></td>
+                            <td>{{ row/player/cyborgFact/min }}</td>
+                            <td>{{ row/player/cyborgFact/max }}</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">Research Centers</th>
+                            <td>{{ startBalanceVisualAttr/researchCent/desc }}<sup>{{ startBalanceVisualAttr/researchCent/footnoteId }}</td>
+                            <td>{{ row/player/researchCent/min }}</td>
+                            <td>{{ row/player/researchCent/max }}</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">Defensive Structs</th>
+                            <td>{{ startBalanceVisualAttr/defStruct/desc }}<sup>{{ startBalanceVisualAttr/defStruct/footnoteId }}</td>
+                            <td>{{ row/player/defStruct/min }}</td>
+                            <td>{{ row/player/defStruct/max }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      <small>This data reflects the units / structures assigned per player when playing with "full" starting bases.</small><br>
+                      <small>Defensive Structs includes things like: bunkers, towers, hardpoints. It does not include walls.</small><br>
+                      <small><i><sup>†</sup> When balance is ≠, but min == max: units vary by type or structures vary by modules.</i></small>
+                    </div>
+                  </div>
+                </div>
+                <!--Additional Details-->
+                <div class="accordion-item accordion-details bg-light details-block">
+                  <h2 class="accordion-header" id="additionalDetails-headingTwo">
+                    <button class="accordion-button sm-accordion-button-text bg-light collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#flush-collapseTwo" aria-expanded="false" aria-controls="flush-collapseTwo">
+                      <span class="text-muted">Created: {{ row/created }}</span>
+                    </button>
+                  </h2>
+                  <div id="flush-collapseTwo" class="accordion-collapse collapse" aria-labelledby="additionalDetails-headingTwo" data-bs-parent="#accordionAdditionalDetails">
+                    <div class="accordion-body">
+                      <table class="table table-striped">
+                        <tbody>
+                          <tr>
+                            <th scope="row">Tileset:</th>
+                            <td>{{ row/tileset }}</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">Uploaded:</th>
+                            <td>{{ row/download/uploaded }}</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">SHA-256 Hash:</th>
+                            <td style="word-break:break-all;" translate="no">{{ row/download/hash }}</td>
+                          </tr>
+                          <tr>
+                            <th scope="row">Filesize:</th>
+                            <td>%FILESIZE%</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="readme-{{ row/download/hash }}" class="details-description bd-callout bd-readme-callout overflow-scroll lh-sm">
+                <div class="details-description-title">
+                    README.md: <span class="loading-indicator"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span><span class="visually-hidden">Loading...</span></span>
+                </div>
+                <div id="readme-map-{{ row/download/hash }}" class="details-description-contents">
+                </div>
+              </div>
+              <p class="small ps-1 text-secondary">
+                License: <span translate="no">{{ row/license }}</span><br>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <a class="btn btn-primary btn-block text-truncate" title="Download Map" href="%PRIMARY_DOWNLOAD_URL%" target="_blank" rel="noopener noreferrer" onclick="event.preventDefault(); openDownloadInNewWindow('%PRIMARY_DOWNLOAD_URL%'); return false;"><i class="bi bi-download"></i> Download Map</a>
+        </div>
+      </div>
+    </template>
+    
+    <!-- Map Card View Template -->
+    <template id="mapCardViewTemplate">
+      <div class="col-6 col-md-4 mt-3 ps-0 mapCardView %MAP_TYPE_CLASS%">
+        <div class="card">
+          <div class="card-body">
+            <div class="row">
+              <div class="col-12 col-lg-8 col-md-12">
+                <span class="position-absolute top-0 start-100 map-mod-badge %MAP_MOD_VISIBILITY% badge bg-danger text-light opacity-75">Mod</span>
+                <h4 class="mb-0 text-truncated" translate="no">%NAME%</h4>
+                <div class="lead text-truncated">by: <span translate="no">%AUTHOR%</span></div>
+                <p class="actionButtons">
+                  <a class="btn btn-primary btn-block text-truncate action-download" title="Download" href="%PRIMARY_DOWNLOAD_URL%" target="_blank" rel="noopener noreferrer" onclick="event.preventDefault(); openDownloadLinkByVisibleIndex(%INDEX%); return false;"><i class="bi-download"></i> Download</a>
+                  <a class="btn btn-secondary btn-block action-view-info" title="View Info" href="%MODAL_URL_BYNAME%" onclick="event.preventDefault(); openMapDetailModalByVisibleIndex(%INDEX%); return false;"><i class="bi bi-info-circle"></i></a>
+                </p>
+                <p>
+                  <span class="badge bg-light text-secondary">Size:</span> <small>%WIDTH% <span class="text-muted" translate="no">x</span> %HEIGHT%</small>
+                  <br />
+                  <span class="badge bg-light text-secondary">Balance:</span> <small>%BALANCE%</small>
+                </p>
+              </div>
+              <div class="col-12 col-lg-4 col-md-12 text-center">
+                <img src="%PREVIEW_IMAGE_URL%" alt="" class="mx-auto img-fluid map-preview" loading="lazy">
+                <ul class="list-inline map-badges text-center">
+                  <li class="list-inline-item map-type-script-show"><i class="bi bi-shuffle" title="Script-Generated Map"></i>
+                  </li>
+                </ul>
+              </div>
+              <div class="d-flex flex-wrap">
+                <div class="p-2 flex-fill text-center text-xl-start">
+                  <h3 class="mb-0"><span class="text-muted fs-5" translate="no">≤</span> %PLAYERS%</h3>
+                  <small>Players</small>
+                </div>
+                <div class="p-2 flex-fill text-center text-xl-start">
+                  <h3 class="mb-0">%SCAVENGERS%</h3>
+                  <small>Scavengers</small>
+                </div>
+                <div class="p-2 flex-fill text-center text-xl-start">
+                  <h3 class="mb-0">%OILTOTAL% <span class="text-muted">/ <span class="fs-5">%OILBYPLAYER%</span></span></h3>
+                  <small>Oil <small class="text-muted"><span translate="no">%</span> player</small></small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js" integrity="sha512-3gJwYpMe3QewGELv8k/BX9vcqhryRdzRMxVfq6ngyWXwo03GFEzjsUm8Q7RZcHPHksttq7/GFoxjCVUjkjvPdw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/js/bootstrap.bundle.min.js" integrity="sha512-i9cEfJwUwViEPFKdC1enz4ZRGBj8YQo6QByFTF92YXHi7waCqyexvRD75S5NVTsSiTv7rKWqG9Y5eFxmRsOn0A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.22.1/bootstrap-table.min.js" integrity="sha512-lsdhisF0ecOfmcKWuClZj9aIMVQe8x8FuoFT2PGqNmoObSYQ2p304H4vSL45ZAX6+fLDCqtepKYzGl+kP+L9EQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.22.1/extensions/custom-view/bootstrap-table-custom-view.min.js" integrity="sha512-k+nUfWg/EDQTdGZZWxiep+sXyUdZllHF6g6ICs7jtW15MEzkeB9JbW4I0DvgU/vR3KNU1raujYi1ZnltsxZNpQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.22.1/extensions/sticky-header/bootstrap-table-sticky-header.min.js" integrity="sha512-4Lo4uMZfyMywFC/xutjjZ1dBbqgs3A+ePeF/ozgkIsBQ/KqJH1QOChnXPpfGxhiShss73dgtAXdHzdpA6Pd69Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="/js/jsonpointer.js"></script>
+    <script src="/js/filesize.min.js"></script>
+    <script>
+        var $table = $('#table');
+        var isShowingCustomView = true;
+        
+        function updateStickyHeader() {
+          let stickyHeaderEnabled = !$('#table-parent').hasClass('fullscreen');
+          // disable sticky header if in our custom fullscreen mode (buggy)
+          $table.bootstrapTable('refreshOptions', {
+            customViewDefaultView: isShowingCustomView, // must manually restore this...
+            stickyHeader: stickyHeaderEnabled,
+          });
+          handleToggleCustomView({currentTarget: $table}, isShowingCustomView); // make sure the proper buttons are shown / hidden
+        }
+        
+        function customTableButtons () {
+          let fullscreenTitle = this.options.formatFullscreen()
+          return {
+            customFullscreen: {
+              text: fullscreenTitle,
+              icon: 'bi bi-arrows-move',
+              event: function () {
+                // Custom fullscreen handling
+                $('#table-parent').toggleClass('fullscreen');
+                $table.bootstrapTable('resetView');
+                updateStickyHeader();
+              },
+              attributes: {
+                title: fullscreenTitle
+              }
+            }
+          }
+        }
+        
+        function defaultRoute(event) {
+          // close any open modals / expanded map views
+          let activeMapModalElement = document.getElementById('mapDetailsModal');
+          if (activeMapModalElement) {
+            let bsModal = bootstrap.Modal.getInstance(activeMapModalElement); // Returns a Bootstrap modal instance
+            if (bsModal) {
+              activeMapModalElement._wz_skip_push_state = true;
+              bsModal.hide(); // NOTE: This should automatically update everything as appropriate (as long as animation is disabled)
+              activeMapModalElement._wz_skip_push_state = false;
+            }
+          }
+        }
+        
+        const locationHandler = (event) => {
+            // get the url path, replace hash with empty string
+            var location = window.location.hash.replace("#", "");
+            // if the path length is 0, set it to primary page route
+            if (location.length == 0) {
+                location = "/";
+            }
+            location = decodeURIComponent(location);
+            var expectedTitle = 'Warzone 2100 Maps Database';
+            
+            // process known routes
+            if (location.startsWith('/map/')) {
+              // a dedicated link to a single map
+              // show the map detail view
+              if (location.startsWith('/map/hash/')) {
+                let mapHashURLMatches = location.match(/^\/map\/hash\/([a-zA-z0-9]+)[\/]?$/);
+                if (mapHashURLMatches) {
+                  openMapDetailModalByMapHash(event, mapHashURLMatches[1]);
+                  return;
+                }
+              }
+              else {
+                let mapNameURLMatches = location.match(/^\/map\/([0-9]{1,2})p\/(.+)[\/]$/);
+                if (mapNameURLMatches) {
+                  // i.e. /map/2p/mapname
+                  openMapDetailModalByMapName(event, mapNameURLMatches[1], mapNameURLMatches[2]);
+                  return;
+                }
+              }
+            }
+            else if (location === '/') {
+              defaultRoute(event);
+              return;
+            }
+            // else {
+              console.log('Unknown route: ' + location);
+              defaultRoute(event);
+            // }
+        };
+        window.onpopstate = locationHandler;
+        
+        function handleToggleCustomView(e, state) {
+          const $target = $(e.currentTarget);
+          const $columnsButton = $target.parents('.bootstrap-table').find('button[title="Columns"]');
+          isShowingCustomView = state;
+          state ? $columnsButton.hide() : $columnsButton.show();
+        }
+        
+        $(function () {
+          document.getElementById('table').style.visibility = 'visible';
+          $table.bootstrapTable({
+            buttonsOrder: ['paginationSwitch', 'refresh', 'toggle', 'customFullscreen', 'fullscreen', 'columns', 'customView'],
+            stickyHeaderOffsetY: parseInt(document.getElementById('mainNavbar').offsetHeight, 10)
+          }).bootstrapTable('showLoading');
+          $table.on('toggle-custom-view.bs.table', handleToggleCustomView);
+          
+          // table starts off with custom view
+          handleToggleCustomView({currentTarget: $table}, isShowingCustomView);
+        });
+
+        function convertProbablyStringToString(x) {
+          switch (typeof x) {
+            case 'object':
+              return '<object>';
+            case 'function':
+              return '<function>';
+            default:
+              return x + '';
+          }
+        }
+        function escapeHtml(unsafe)
+        {
+          return convertProbablyStringToString(unsafe)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;')
+                .replaceAll("`", '&#96;');
+        }
+
+        let replaceDoubleBraces = (str, obj, htmlescape = false, empty_str_on_failure = false) =>{
+          return str.replace(/{{(.+?)}}/g, (_,g1) =>{
+            var i = jsonpointer.get(obj, '/' + g1.trim());
+            if (typeof i === 'undefined') {
+              if (empty_str_on_failure) {
+                console.log('Did not find: ' + g1);
+                return '';
+              }
+              else {
+                return g1;
+              }
+            }
+            return (htmlescape) ? escapeHtml(i.toString()) : i;
+          })
+        }
+        
+        let getDownloadURLs = (row) =>{
+          let itemDownloadURLs = window.wz_globals['asset-url-templates']['download'].map(function(url_template) {
+              return replaceDoubleBraces(url_template, row);
+          });
+          return itemDownloadURLs;
+        }
+        
+        let getImagePreviewURL = (row) =>{
+          let template = window.wz_globals['asset-url-templates']['preview']['2d'];
+          return replaceDoubleBraces(template, row);
+        }
+        
+        let getReadmeURL = (row) =>{
+          let template = window.wz_globals['asset-url-templates']['readme']['en'];
+          return replaceDoubleBraces(template, row);
+        }
+        
+        function imageFormatter(value, row, index) {
+          return '<img src="' + getImagePreviewURL(row) + '" height="75px" loading="lazy"/>';
+        }
+        
+        function imageCellStyle(value, row, index) {
+          return {
+            classes: 'image-preview-cell'
+          }
+        }
+        
+        function mapSizeFormatter(value, row, index) {
+          return value.w + 'x' + value.h;
+        }
+        
+        function mapSizeSorter(a, b) {
+          var aa = a.w * a.h;
+          var bb = b.w * b.h;
+          return aa - bb;
+        }
+        
+        function scavengersCellStyle(value, row, index) {
+          if (value > 100)
+          {
+            return {
+              classes: 'scavs-lots'
+            }
+          }
+          else if (value < 15)
+          {
+            if (value == 0)
+            {
+              return {
+                classes: 'scavs-none'
+              }
+            }
+            else
+            {
+              return {
+                classes: 'scavs-few'
+              }
+            }
+          }
+          return {
+            classes: 'scavs-normal'
+          }
+        }
+        
+        function isOverallBalanceEqual(player) {
+          if (typeof player !== 'object') {
+            console.error('player is not an object?');
+            return false;
+          }
+          if (player.units.eq 
+            // do not include player.structs.eq, as that factors in things like # of walls - instead, check each of the important structure types
+            && player.resourceExtr.eq
+            && player.pwrGen.eq
+            && player.regFact.eq
+            && player.vtolFact.eq
+            && player.cyborgFact.eq
+            && player.researchCent.eq
+            && player.defStruct.eq
+          )
+          {
+            return true;
+          }
+          else {
+            return false;
+          }
+        }
+        
+        function balanceFormatter(player, row, index) {
+          if (isOverallBalanceEqual(player))
+          {
+            return "==";
+          }
+          else
+          {
+            return "<b>No</b>";
+          }
+        }
+        
+        function infoFormatter(value, row, index) {
+          rowModalHash = getRowModalHashLocation(row);
+          return [
+              `<a class="btn btn-default btn-block map-info" title="View Info" href="${rowModalHash}">`,
+              '<i class="bi-info-circle"></i>',
+              '</a>',
+              ].join('');
+        }
+        
+        function actionsFormatter(value, row, index) {
+          let primaryDownloadURL = getPrimaryDownloadLink(row, index);
+          if (primaryDownloadURL == null) {
+            primaryDownloadURL = 'javascript:void(0)';
+          }
+          return [
+              `<a class="btn btn-primary btn-block btn-custom-sm map-download" title="Download" href="${primaryDownloadURL}" target="_blank" rel="noopener noreferrer">`,
+              '<i class="bi-download"></i>',
+              '</a>',
+              ].join('');
+        }
+        
+        window.actionsEvents = {
+          'click .map-info': function (e, value, row, index) {
+            e.preventDefault();
+            openMapDetailModal(row, index);
+            return false;
+          },
+          'click .map-download': function (e, value, row, index) {
+            e.preventDefault();
+            openDownloadLink(row, index);
+            return false;
+          }
+        }
+        
+        function filterModeCompare(str, value, compareMode)
+        {
+          switch (compareMode)
+          {
+          case 'contains':
+            return str.includes(value);
+          case 'equals':
+            return str === value;
+          case 'beginsWith':
+            return str.startsWith(value);
+          case 'endsWith':
+            return str.endsWith(value);
+          }
+          console.log('Unexpected compareMode: ' + compareMode);
+          return false;
+        }
+        
+        function numericFilterCompare(num, value, compareMode)
+        {
+          switch (compareMode)
+          {
+          case '<=':
+            return num <= value;
+          case '==':
+            return num == value;
+          case '>=':
+            return num >= value;
+          }
+          console.log('Unexpected compareMode: ' + compareMode);
+          return false;
+        }
+        
+        function mapsTableFilterAlgorithm(row, filters) {
+          if (Array.isArray(row[filters.queryType]))
+          {
+            var foundMatch = false;
+            row[filters.queryType].forEach((value, i) => {
+              if (filterModeCompare(value.toLowerCase(), filters.query, filters.queryMode))
+              {
+                foundMatch = true;
+              }
+            });
+            if (!foundMatch) {
+              return false;
+            }
+          }
+          else
+          {
+            if (!filterModeCompare(row[filters.queryType].toLowerCase(), filters.query, filters.queryMode))
+            {
+              return false;
+            }
+          }
+          
+          // Only proceed if advanced filters are enabled
+          if (!filters.advancedFiltersEnabled) {
+            return true;
+          }
+          
+          if (filters.players !== '*' && !numericFilterCompare(row['slots'], filters.players, filters.playersCompareMode)) {
+            return false;
+          }
+          
+          if (filters.sizeW && !numericFilterCompare(row['size']['w'], filters.sizeW, filters.sizeCompareMode)) {
+            return false;
+          }
+          if (filters.sizeH && !numericFilterCompare(row['size']['h'], filters.sizeH, filters.sizeCompareMode)) {
+            return false;
+          }
+          
+          if (filters.oilByPlayer && !numericFilterCompare(row.oilWellsByPlayer, filters.oilByPlayer, filters.oilByPlayerCompareMode)) {
+            return false;
+          }
+          
+          switch (filters.scavengers) {
+          case '*':
+            break;
+          case 'yes':
+            if (!row['scavs'] > 0) { return false; }
+            break;
+          case 'no':
+            if (!row['scavs'] == 0) { return false; }
+            break;
+          }
+          
+          switch (filters.balance) {
+          case '*':
+            break;
+          case '==':
+            if (!isOverallBalanceEqual(row['player'])) { return false; }
+            break;
+          case 'no':
+            if (isOverallBalanceEqual(row['player'])) { return false; }
+            break;
+          }
+          
+          switch (filters.mapType) {
+          case '*':
+            break;
+          case 'normal':
+            if (row.download.type == 'script') { return false; }
+            break;
+          case 'script':
+            if (row.download.type != 'script') { return false; }
+            break;
+          }
+          
+          return true;
+        }
+          
+        function updateFilters() {
+          let advancedFiltersEnabled = document.getElementById('advanced-filters-container').matches('.collapse.show');
+          var filters = {
+            query: document.getElementById('filter-query').value.toLowerCase(),
+            queryType: document.getElementById('filter-query-type').value,
+            queryMode: ((advancedFiltersEnabled) ? document.getElementById('filter-query-mode').value : 'contains'),
+            advancedFiltersEnabled: advancedFiltersEnabled
+          };
+          const validateIntInput = (elementId, minInt, maxInt, defaultVal) => {
+            var elem = document.getElementById(elementId);
+            if (!elem) { return undefined; }
+            if (!/^\+?(0|[1-9]\d*)$/.test(elem.value)) {
+              elem.value = defaultVal;
+              return undefined;
+            }
+            let n = Number(elem.value);
+            let clampedN = Math.min(Math.max(n, minInt), maxInt);
+            if (n != clampedN) {
+              elem.value = '' + clampedN;
+            }
+            return clampedN;
+          };
+          if (advancedFiltersEnabled) {
+            filters.playersCompareMode = document.getElementById('filter-players-mode').value;
+            filters.players = document.getElementById('filter-players').value;
+            filters.sizeCompareMode = document.getElementById('filter-size-mode').value;
+            filters.sizeW = validateIntInput('filter-size-w', 1, 255, '');
+            filters.sizeH = validateIntInput('filter-size-h', 1, 255, '');
+            filters.oilByPlayerCompareMode = document.getElementById('filter-oil-by-player-mode').value;
+            filters.oilByPlayer = validateIntInput('filter-oil-by-player', 0, 1000, '');
+            filters.scavengers = document.getElementById('filter-scavengers').value;
+            filters.balance = document.getElementById('filter-balance').value;
+            filters.mapType = document.getElementById('filter-map-type').value;
+          }
+          $table.bootstrapTable('filterBy', filters, {
+            'filterAlgorithm': mapsTableFilterAlgorithm
+          })
+        }
+        
+        function clearFilters() {
+          document.getElementById('filter-query').value = '';
+          let advancedFiltersEnabled = document.getElementById('advanced-filters-container').matches('.collapse.show');
+          if (advancedFiltersEnabled) {
+            document.getElementById('filter-players').value = '*';
+            document.getElementById('filter-size-w').value = '';
+            document.getElementById('filter-size-h').value = '';
+            document.getElementById('filter-oil-by-player').value = '';
+            document.getElementById('filter-scavengers').value = '*';
+            document.getElementById('filter-balance').value = '*';
+            document.getElementById('filter-map-type').value = '*';
+          }
+        }
+        
+        function onFilterSubmit(event) {
+          updateFilters();
+          event.preventDefault();
+        }
+        
+        document.querySelectorAll('.map-search-update').forEach(function(updateButton) {
+          updateButton.addEventListener('click', function(evt) {
+            updateFilters();
+          });
+        })
+        
+        document.querySelectorAll('.map-search-clear').forEach(function(clearButton) {
+          clearButton.addEventListener('click', function(evt) {
+            clearFilters();
+            updateFilters();
+          });
+        })
+        
+        document.getElementById("search-form").addEventListener("submit", onFilterSubmit, true);
+        
+        function customViewBalanceFormatter(row, index)
+        {
+          var result = balanceFormatter(row.player, row, index);
+          if (result == '==') { return "Equal"; }
+          return result;
+        }
+        
+        function getMapTypeClass(row) {
+          var mapTypeClass = ''
+          if (row.download.type == 'script') {
+            mapTypeClass = 'map-type-script'
+          }
+          return mapTypeClass;
+        }
+        
+        function customViewFormatter (data) {
+          var template = document.getElementById('mapCardViewTemplate').innerHTML;
+          var view = ''
+          data.forEach(function (row, i) {
+            let primaryDownloadURL = getPrimaryDownloadLink(row, i);
+            if (primaryDownloadURL == null) {
+              primaryDownloadURL = 'javascript:void(0)';
+            }
+            rowModalHashByName = getRowModalHashLocation(row);
+            
+            view += template.replaceAll('%MAP_TYPE_CLASS%', getMapTypeClass(row))
+              .replace('%NAME%', escapeHtml(row.name))
+              .replace('%AUTHOR%', escapeHtml((Array.isArray(row.author) ? row.author[0] : row.author)))
+              .replace('%PREVIEW_IMAGE_URL%', getImagePreviewURL(row))
+              .replace('%WIDTH%', row.size.w)
+              .replace('%HEIGHT%', row.size.h)
+              .replace('%BALANCE%', customViewBalanceFormatter(row, i))
+              .replace('%PLAYERS%', row.slots)
+              .replace('%SCAVENGERS%', (row.scavs > 0) ? row.scavs : '-')
+              .replace('%OILTOTAL%', row.oilWells)
+              .replace('%OILBYPLAYER%', row.oilWellsByPlayer)
+              .replace('%MAP_MOD_VISIBILITY%', ('mod' in row && row.mod) ? 'visible' : 'invisible')
+              .replace('%PRIMARY_DOWNLOAD_URL%', primaryDownloadURL)
+              .replaceAll('%MODAL_URL_BYNAME%', rowModalHashByName)
+              .replaceAll('%INDEX%', i);
+          });
+
+          return '<div class="row mx-0">' + view + '</div>';
+        }
+        
+        function objectMap(object, mapFn) {
+          return Object.keys(object).reduce(function(result, key) {
+            result[key] = mapFn(object[key])
+            return result
+          }, {})
+        }
+        
+        function buildStartingBalanceVisualAttr(row) {
+          let playerBalInfo = row.player;
+          var convertPlayerBalTypeToVisualAttr = function(playerBalType) {
+            var balInfo = {};
+            balInfo['footnoteId'] = '';
+            if (playerBalType.max == 0) {
+              balInfo['class'] = 'bg-warning';
+              balInfo['desc'] = '∅';
+            }
+            else {
+              if (playerBalType.eq) {
+                balInfo['class'] = 'bg-success';
+                balInfo['desc'] = '=';
+              } else {
+                balInfo['class'] = 'bg-secondary';
+                balInfo['desc'] = '≠';
+                if (playerBalType.min == playerBalType.max) {
+                  balInfo['footnoteId'] = '†'; // balance is ≠, but min == max
+                }
+              }
+            }
+            return balInfo;
+          };
+          var balVisualAttr = objectMap(playerBalInfo, convertPlayerBalTypeToVisualAttr);
+          
+          // Also add a combined value for "all factories"
+          var combinedFactories = {
+            'eq': playerBalInfo.regFact.eq && playerBalInfo.vtolFact.eq && playerBalInfo.cyborgFact.eq,
+            // the min is not technically accurate, but is not used by convertPlayerBalTypeToVisualAttr, so not important
+            'min': 0,
+            // the max only matters if != 0
+            'max': playerBalInfo.regFact.max + playerBalInfo.vtolFact.max + playerBalInfo.cyborgFact.max,
+          };
+          balVisualAttr['factories'] = convertPlayerBalTypeToVisualAttr(combinedFactories);
+          
+          return balVisualAttr;
+        }
+        
+        function getRowModalHashLocation(row) {
+          return '#/map/'+row.slots+'p/'+row.name+'/';
+        }
+        
+        function openMapDetailModal(row, index, suppressHistoryPush=false) {
+          var template = document.getElementById('mapDetailModalTemplate').innerHTML
+          let startBalanceVisualAttr = buildStartingBalanceVisualAttr(row);
+          var additionalAuthorsContent = '';
+          if (Array.isArray(row.author) && row.author.length > 1) {
+            additionalAuthorsContent = ' & ';
+            additionalAuthorsContent += row.author.slice(1).join(', ');
+          }
+          let primaryDownloadURL = getPrimaryDownloadLink(row, index);
+          if (primaryDownloadURL == null) {
+            primaryDownloadURL = 'javascript:void(0)';
+          }
+          
+          var contentHTML = ''
+          contentHTML += template.replaceAll('%MAP_TYPE_CLASS%', getMapTypeClass(row))
+            .replaceAll('%AUTHOR%', escapeHtml((Array.isArray(row.author) ? row.author[0] : row.author)))
+            .replaceAll('%ADDITIONAL_AUTHORS%', escapeHtml(additionalAuthorsContent))
+            .replaceAll('%PREVIEW_IMAGE_URL%', getImagePreviewURL(row))
+            .replaceAll('%OILBYPLAYER%', row.oilWellsByPlayer)
+            .replaceAll('%MAP_MOD_VISIBILITY%', (row.mod) ? 'visible' : 'invisible')
+            .replaceAll('%SHA256%', row.download.hash)
+            .replaceAll('%FILESIZE%', filesize(row.download.size, {base: 2}))
+            .replaceAll('%PRIMARY_DOWNLOAD_URL%', primaryDownloadURL);
+          
+          let lookupObj = {
+            'startBalanceVisualAttr': startBalanceVisualAttr,
+            'row': row
+          }
+          contentHTML = replaceDoubleBraces(contentHTML, lookupObj, true, true);
+          
+          var modal = document.getElementById('mapDetailsModal');
+          
+          // Init the modal if it hasn't been already.
+          if (!modal) {
+            modal = document.createElement('div');
+            modal.classList.add('modal', 'mapDetailsModal');
+            modal.setAttribute('id', 'mapDetailsModal');
+            modal.setAttribute('tabindex', '-1');
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-labelledby', 'exampleModalLabel');
+            modal.setAttribute('aria-hidden', 'true');
+            modal.innerHTML =
+                  '<div class="modal-dialog modal-lg" role="document">' +
+                    '<div class="modal-container"></div>' +
+                  '</div>';
+            document.body.appendChild(modal);
+            
+            modal.addEventListener('hide.bs.modal', function (e) {
+              document.title = 'Warzone 2100 Maps Database';
+              if (!event.target._wz_skip_push_state) {
+                history.pushState({}, "", '/');
+              }
+              event.target._wz_skip_push_state = false;
+            });
+            modal.addEventListener('hidden.bs.modal', function (e) {
+            });
+            
+            modal.addEventListener('show.bs.modal', function (e) {
+              event.target._wz_skip_push_state = false;
+            });
+          }
+          
+          modal.querySelector('.modal-container').innerHTML = contentHTML;
+          
+          // queue lookup of README.md for map
+          sha256_hash = row.download.hash;
+          fetch(getReadmeURL(row)).then(response => {
+            if (response.ok) {
+              return response.text();
+            }
+            else {
+              if (response.status == 404) {
+                // expected response if no README exists for this map
+                // hide the README section
+                var readmeContainerElement = document.getElementById('readme-'+sha256_hash);
+                if (readmeContainerElement) {
+                  readmeContainerElement.style.display = 'none';
+                }
+              } else {
+                // unexpected response
+                console.error('Failed to get README with status: ' + response.status);
+              }
+              return "";
+            }
+          }).then(readmeText => {
+            var readmeContainerElement = document.getElementById('readme-'+sha256_hash);
+            if (readmeContainerElement) {
+              readmeLoadingIndicators = readmeContainerElement.querySelectorAll('.loading-indicator');
+              for (let i = 0; i < readmeLoadingIndicators.length; i++) {
+                readmeLoadingIndicators[i].style.display = 'none';
+              }
+            }
+            var readmeContentsElement = document.getElementById('readme-map-'+sha256_hash);
+            if (readmeContentsElement) {
+              readmeContentsElement.innerHTML = '';
+              readmeTextLines = readmeText.split(/\r?\n/);
+              for (let i = 0; i < readmeTextLines.length; i++) {
+                if (i > 0)
+                {
+                  readmeContentsElement.appendChild(document.createElement('br'));
+                }
+                readmeContentsElement.appendChild(document.createTextNode(readmeTextLines[i]));
+              }
+            }
+          }).catch(console.error);
+          
+          var bsModal = bootstrap.Modal.getOrCreateInstance(modal, {backdrop: 'static', keyboard: false});
+          bsModal.show();
+          
+          document.title = 'Warzone 2100 Maps - ' + row.name;
+          if (!suppressHistoryPush) {
+            history.pushState({}, "", getRowModalHashLocation(row));
+          }
+        }
+        
+        function getPrimaryDownloadLink(row, index) {
+          let itemDownloadURLs = getDownloadURLs(row);
+          if (!(itemDownloadURLs instanceof Array) || (itemDownloadURLs.length <= 0))
+          {
+            console.error('Failed to construct download links for item');
+            return null;
+          }
+          return itemDownloadURLs[0];
+        }
+        
+        function openDownloadInNewWindow(download_url) {
+          var newWindow = window.open();
+          newWindow.opener = null;
+          newWindow.location = download_url;
+          newWindow.focus();
+          newWindow.onblur = function() {newWindow.close(); }; // handles closing the new tab/window if a "save as" dialog is presented (in many cases)
+          newWindow.setTimeout(function(){
+              newWindow.close();
+          }, 2000); // handles closing the window if browser downloads without prompting (after a delay)
+        }
+        
+        function openDownloadLink(row, index) {
+          let primaryDownloadURL = getPrimaryDownloadLink(row, index);
+          if (primaryDownloadURL == null)
+          {
+            console.error('Failed to get primary download link for item');
+            return;
+          }
+          openDownloadInNewWindow(primaryDownloadURL);
+        }
+        
+        function openDownloadLinkByIndex(index) {
+          let data = $table.bootstrapTable('getData', {'useCurrentPage': false});
+          openDownloadLink(data[index], index);
+        }
+        
+        function openDownloadLinkByVisibleIndex(index) {
+          let data = $table.bootstrapTable('getData', {'useCurrentPage': true});
+          openDownloadLink(data[index], index);
+        }
+        
+        function openMapDetailModalByVisibleIndex(index) {
+          let data = $table.bootstrapTable('getData', {'useCurrentPage': true});
+          openMapDetailModal(data[index], index);
+        }
+        
+        function openMapDetailModalByMapHash(event, hash) {
+          let data = $table.bootstrapTable('getData', {'useCurrentPage': false, 'includeHiddenRows': true, 'unfiltered': true});
+          let index = data.findIndex(x => x.download.hash === hash);
+          if (index < 0) {
+            console.error('Failed to find map with hash: ' + hash);
+            return;
+          }
+          openMapDetailModal(data[index], index, true);
+        }
+        
+        function openMapDetailModalByMapName(event, slots, name) {
+          let data = $table.bootstrapTable('getData', {'useCurrentPage': false, 'includeHiddenRows': true, 'unfiltered': true});
+          let index = data.findIndex(x => {
+            return x.slots == slots && x.name === name;
+          });
+          if (index < 0) {
+            console.error('Failed to find map with name: ' + players + 'p/' + name);
+            return;
+          }
+          openMapDetailModal(data[index], index, true);
+        }
+        
+        function processFetchedPaginatedData(data)
+        {
+          if (!(typeof window.wz_globals === 'object' && window.wz_globals !== null))
+          {
+            window.wz_globals = {};
+          }
+          window.wz_globals['asset-url-templates'] = data['asset-url-templates'];
+        }
+        
+        function getMapsDatabase(progress, url = '/api/v1/full.json', map_db = {"maps": []}, page = 1) {
+          return new Promise((resolve, reject) => fetch(url)
+            .then(response => {
+                if (response.status !== 200)  {
+                  throw `${url}: ${response.status}: ${response.statusText}`;
+                }
+                response.json().then(data => {
+                  map_db['version'] = data['version'];
+                  map_db['asset-url-templates'] = data['asset-url-templates'];
+                  map_db['maps'] = map_db['maps'].concat(data['maps']);
+
+                  if(data.links && data.links.next) {
+                    progress && progress(map_db);
+                    getMapsDatabase(progress, data.links.next, map_db, page + 1).then(resolve).catch(error => {
+                      console.error(error);
+                      // however, since at least one page was fetched, return the partial data
+                      map_db['complete'] = false;
+                      resolve(map_db);
+                    })
+                  } else {
+                    map_db['complete'] = true;
+                    resolve(map_db);
+                  }
+                }).catch(reject);
+            }).catch(reject));
+        }
+        
+        function progressCallback(mapdb) {
+          console.log(`Loaded: ${mapdb.maps.length}`);
+        }
+
+        $(function () {
+          getMapsDatabase(progressCallback)
+            .then(mapdb => {
+              // all maps have been loaded
+              if (mapdb['complete'])
+              {
+                console.log('Loaded ' + mapdb.maps.length + ' maps');
+              }
+              else
+              {
+                console.log('Loaded partial map data');
+              }
+              
+              // cache some computed values
+              mapdb.maps.forEach((row, i) => {
+                row['oilWellsByPlayer'] = Math.floor(row.oilWells / row.slots);
+              });
+            
+              processFetchedPaginatedData(mapdb);
+              
+              $table.bootstrapTable('load', mapdb.maps);
+              locationHandler();
+              $table.bootstrapTable('hideLoading');
+            })
+            .catch(console.error);
+          });
+    </script>
+  </body>
+</html>
