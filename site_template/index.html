@@ -108,6 +108,10 @@
         object-fit: contain;
       }
       
+      .author-anon {
+        color: rgba(108, 117, 125, 255)!important;
+      }
+      
       .mapCardView .map-badges {
         height: 1.5em;
       }
@@ -553,7 +557,7 @@
             </div>
             <div class="col-md-9 col-lg-8 pt-3 px-4 map-details-container">
               <h2 class="mb-0 text-truncated" translate="no">{{ row/name }}</h2>
-              <span class="lead">by: <span translate="no">%AUTHOR%</span><span class="additional-authors" translate="no">%ADDITIONAL_AUTHORS%</span></span>
+              <span class="lead %AUTHOR_TYPE_CLASS%">by: <span translate="no">%AUTHOR%</span><span class="additional-authors" translate="no">%ADDITIONAL_AUTHORS%</span></span>
 
               
               <div class="accordion mt-3 mb-2" id="accordionAdditionalDetails">
@@ -725,7 +729,7 @@
               <div class="col-12 col-lg-8 col-md-12">
                 <span class="position-absolute top-0 start-100 map-mod-badge %MAP_MOD_VISIBILITY% badge bg-danger text-light opacity-75">Mod</span>
                 <h4 class="mb-0 text-truncated" translate="no">%NAME%</h4>
-                <div class="lead text-truncated">by: <span translate="no">%AUTHOR%</span></div>
+                <div class="lead text-truncated %AUTHOR_TYPE_CLASS%">by: <span translate="no">%AUTHOR%</span></div>
                 <p class="actionButtons">
                   <a class="btn btn-primary btn-block text-truncate action-download" title="Download" href="%PRIMARY_DOWNLOAD_URL%" rel="noopener noreferrer nofollow"><i class="bi-download"></i> Download</a>
                   <a class="btn btn-secondary btn-block action-view-info" title="View Info" href="%MODAL_URL_BYNAME%" onclick="event.preventDefault(); openMapDetailModalByVisibleIndex(%INDEX%); return false;"><i class="bi bi-info-circle"></i></a>
@@ -1088,7 +1092,8 @@
           }
           else
           {
-            if (!filterModeCompare(row[filters.queryType].toLowerCase(), filters.query, filters.queryMode))
+            var lowercaseStrVal = (filters.queryType in row) ? row[filters.queryType].toLowerCase() : '';
+            if (!filterModeCompare(lowercaseStrVal, filters.query, filters.queryMode))
             {
               return false;
             }
@@ -1238,6 +1243,10 @@
           return mapTypeClass;
         }
         
+        function getPrimaryAuthorName(row) {
+          return (Array.isArray(row.author) ? row.author[0] : row.author);
+        }
+        
         function customViewFormatter (data) {
           var template = document.getElementById('mapCardViewTemplate').innerHTML;
           var view = ''
@@ -1247,10 +1256,19 @@
               primaryDownloadURL = 'javascript:void(0)';
             }
             rowModalHashByName = getRowModalHashLocation(row);
+            var authorStr = 'Anonymous';
+            var authorTypeClass = '';
+            if ('author' in row) {
+              authorStr = getPrimaryAuthorName(row);
+            }
+            else {
+              authorTypeClass = 'author-anon';
+            }
             
             view += template.replaceAll('%MAP_TYPE_CLASS%', getMapTypeClass(row))
               .replace('%NAME%', escapeHtml(row.name))
-              .replace('%AUTHOR%', escapeHtml((Array.isArray(row.author) ? row.author[0] : row.author)))
+              .replace('%AUTHOR%', escapeHtml(authorStr))
+              .replace('%AUTHOR_TYPE_CLASS%', authorTypeClass)
               .replace('%PREVIEW_IMAGE_URL%', getImagePreviewURL(row))
               .replace('%WIDTH%', row.size.w)
               .replace('%HEIGHT%', row.size.h)
@@ -1329,10 +1347,19 @@
           if (primaryDownloadURL == null) {
             primaryDownloadURL = 'javascript:void(0)';
           }
+          var authorStr = 'Anonymous';
+          var authorTypeClass = '';
+          if ('author' in row) {
+            authorStr = getPrimaryAuthorName(row);
+          }
+          else {
+            authorTypeClass = 'author-anon';
+          }
           
           var contentHTML = ''
           contentHTML += template.replaceAll('%MAP_TYPE_CLASS%', getMapTypeClass(row))
-            .replaceAll('%AUTHOR%', escapeHtml((Array.isArray(row.author) ? row.author[0] : row.author)))
+            .replaceAll('%AUTHOR%', escapeHtml(authorStr))
+            .replaceAll('%AUTHOR_TYPE_CLASS%', authorTypeClass)
             .replaceAll('%ADDITIONAL_AUTHORS%', escapeHtml(additionalAuthorsContent))
             .replaceAll('%PREVIEW_IMAGE_URL%', getImagePreviewURL(row))
             .replaceAll('%OILBYPLAYER%', row.oilWellsByPlayer)
