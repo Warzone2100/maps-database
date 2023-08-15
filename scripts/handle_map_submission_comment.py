@@ -287,7 +287,11 @@ def build_map_submission_analysis_response(map_archive_path: Path, map_dl_detail
         result_lines.append('## {0} Map: (missing `name` property)'.format(emoji_status_symbol))
         pass
     if validation_details.passed_validation():
-        result_lines.append('by: {0}'.format(validation_details.map_info_json['author']['name']))
+        try:
+            result_lines.append('by: {0}'.format(validation_details.map_info_json['author']['name']))
+        except KeyError:
+            result_lines.append('- by: Anonymous (missing `author` property)')
+            pass
     result_lines.append('')
     result_lines.append('')
     result_lines.append('- 📦 [Map Package (`{0}`)]({1})'.format(map_dl_file_name, map_dl_details['url']))
