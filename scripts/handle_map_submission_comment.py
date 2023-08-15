@@ -631,7 +631,11 @@ class WZMapSubmissionValidationCommentDetails:
     def description_body_matches_expected(self) -> bool:
         body_text = self.get_description_body()
         if body_text is None:
-            return False
+            if ((not 'size' in self.description) or (self.description['size'] == 0)):
+                # expecting no description
+                return True
+            else:
+                return False
         encoded_text = body_text.encode('utf-8')
         if len(encoded_text) != self.description['size']:
             return False
