@@ -219,7 +219,7 @@ def publish_maprepo_new_releases_to_mapassets_database(github_repo: str, new_rel
             gh_release_latest_view_result = subprocess.run([tools.gh_cli_exe, 'release', '--repo', github_repo, 'download', release, '--dir', temp_assets_dl_folder], check=True)
             
             # Get the published-at date directly from the GitHub release, and convert to YYYY-MM-DD HH:MM:SS
-            release_upload_date = get_map_release_upload_date(release, repo, tools)
+            release_upload_date = get_map_release_upload_date(release, github_repo, tools)
             
             # Generate the release map info
             maps_info_output_dir = os.path.join(map_repo_release_info_folder, release)
@@ -446,7 +446,9 @@ def update_map_db(map_repos: list, parent_release_maps_info_folder: str, map_db_
             
             if dry_run:
                 # Enumerate the map_repo_release_info_folder to get the on-disk releases (which haven't been persisted)
-                on_disk_releases = [f.name for f in os.scandir(os.path.join(parent_release_maps_info_folder, github_repo)) if f.is_dir()]
+                on_disk_releases = []
+                if os.path.exists(os.path.join(parent_release_maps_info_folder, github_repo)):
+                    on_disk_releases = [f.name for f in os.scandir(os.path.join(parent_release_maps_info_folder, github_repo)) if f.is_dir()]
                 try:
                     on_disk_releases = sorted(on_disk_releases, key=lambda x: int(x[1:]))
                     if map_repo_last_release_processed:
