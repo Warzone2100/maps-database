@@ -5,6 +5,8 @@
     <meta http-equiv="content-language" content="en" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Warzone 2100 Maps Database</title>
+    <meta name="description" content="Find and download new maps for Warzone 2100.">
+    <link rel="shortcut icon" type="image/png" href="/favicon.ico">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/css/bootstrap.min.css" integrity="sha512-SbiR/eusphKoMVVXysTKG/7VseWii+Y3FdHrt0EpKgpToZeemhqHeZeLWLhJutz/2ut2Vw1uQEj2MbRF+TVBUA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.5/font/bootstrap-icons.min.css" integrity="sha512-ZnR2wlLbSbr8/c9AgLg3jQPAattCUImNsae6NHYnS9KrIwRdcY9DxFotXhNAKIKbAXlRnujIqUWoXXwqyFOeIQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-table/1.22.1/bootstrap-table.min.css" integrity="sha512-CcTkIsZd9q6wsVUGBewW5P1uXFcuI6mAsjEn+T+TJKLebXneMQPj1GpwU9O/dkajlHJj/40UBugBAcWN+eFo+g==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -483,7 +485,7 @@
               <th data-field="tileset" data-escape="true" data-align="center" data-sortable="true" data-visible="false">Tileset</th>
               <th data-field="author" data-escape="true" data-align="center" data-sortable="true">Author</th>
               <th data-field="license" data-escape="true" data-align="center" data-visible="false">License</th>
-              <th class="table-dl-button-col" data-field="actions" data-formatter="actionsFormatter" data-events="actionsEvents" data-align="center" data-switchable="false"></th>
+              <th class="table-dl-button-col" data-field="actions" data-formatter="actionsFormatter" data-align="center" data-switchable="false"></th>
             </tr>
           </thead>
         </table>
@@ -709,7 +711,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-          <a class="btn btn-primary btn-block text-truncate" title="Download Map" href="%PRIMARY_DOWNLOAD_URL%" target="_blank" rel="noopener noreferrer" onclick="event.preventDefault(); openDownloadInNewWindow('%PRIMARY_DOWNLOAD_URL%'); return false;"><i class="bi bi-download"></i> Download Map</a>
+          <a class="btn btn-primary btn-block text-truncate" title="Download Map" href="%PRIMARY_DOWNLOAD_URL%" rel="noopener noreferrer nofollow"><i class="bi bi-download"></i> Download Map</a>
         </div>
       </div>
     </template>
@@ -725,7 +727,7 @@
                 <h4 class="mb-0 text-truncated" translate="no">%NAME%</h4>
                 <div class="lead text-truncated">by: <span translate="no">%AUTHOR%</span></div>
                 <p class="actionButtons">
-                  <a class="btn btn-primary btn-block text-truncate action-download" title="Download" href="%PRIMARY_DOWNLOAD_URL%" target="_blank" rel="noopener noreferrer" onclick="event.preventDefault(); openDownloadLinkByVisibleIndex(%INDEX%); return false;"><i class="bi-download"></i> Download</a>
+                  <a class="btn btn-primary btn-block text-truncate action-download" title="Download" href="%PRIMARY_DOWNLOAD_URL%" rel="noopener noreferrer nofollow"><i class="bi-download"></i> Download</a>
                   <a class="btn btn-secondary btn-block action-view-info" title="View Info" href="%MODAL_URL_BYNAME%" onclick="event.preventDefault(); openMapDetailModalByVisibleIndex(%INDEX%); return false;"><i class="bi bi-info-circle"></i></a>
                 </p>
                 <p>
@@ -1024,7 +1026,7 @@
             primaryDownloadURL = 'javascript:void(0)';
           }
           return [
-              `<a class="btn btn-primary btn-block btn-custom-sm map-download" title="Download" href="${primaryDownloadURL}" target="_blank" rel="noopener noreferrer">`,
+              `<a class="btn btn-primary btn-block btn-custom-sm map-download" title="Download" href="${primaryDownloadURL}" rel="noopener noreferrer nofollow">`,
               '<i class="bi-download"></i>',
               '</a>',
               ].join('');
@@ -1034,11 +1036,6 @@
           'click .map-info': function (e, value, row, index) {
             e.preventDefault();
             openMapDetailModal(row, index);
-            return false;
-          },
-          'click .map-download': function (e, value, row, index) {
-            e.preventDefault();
-            openDownloadLink(row, index);
             return false;
           }
         }
