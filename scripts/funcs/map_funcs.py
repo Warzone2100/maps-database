@@ -25,9 +25,10 @@ DATE_FORMAT_RE = re.compile("^(?P<year>\d{3}\d+)-(?P<month>(0[1-9])|(1[0-2]))-(?
 NAME_FORMAT_RE = re.compile("^[A-Za-z0-9\-_]+$")
 
 class MapInfoValidationResult:
-    def __init__(self, warnings: list, errors: list, passedFormatChecks: bool):
+    def __init__(self, warnings: list, errors: list, passedFormatChecks: bool, errors_non_fatal: list[str] = []):
         self.warnings = warnings
         self.errors = errors
+        self.errors_non_fatal = errors_non_fatal
         self.passedFormatChecks = passedFormatChecks
 
 OLD_MAX_LEVEL_NAME_SIZE = 20 # Used by old .gam files
@@ -49,6 +50,7 @@ class ValidateMapWarningOptions:
 def validate_map_info(map_info_json: dict, enforce_format_checks: bool=True, warning_options: ValidateMapWarningOptions = ValidateMapWarningOptions()) -> MapInfoValidationResult:
     warnings =[]
     errors = []
+    errors_non_fatal = []
 
     # - Must have a name
     if map_info_json['name']:
@@ -82,9 +84,31 @@ def validate_map_info(map_info_json: dict, enforce_format_checks: bool=True, war
     if not map_info_json['tileset'] in allowed_tilesets:
         errors.append("'tileset' ('{0}') is not one of the allowed values: {1}".format(map_info_json['tileset'], allowed_tilesets))
 
-    # - Must have an author name
+    # - Must have a license (and it must be a valid SPDX license identifier string)
+    #     - https://github.com/nexB/license-expression
+    has_valid_license = False
+    if not 'license' in map_info_json:
+        errors.append("Missing required 'license' key")
+    else:
+        try:
+            parsed_license = licensing.parse(map_info_json['license'], validate=True, strict=True)
+            if not any(licensing.is_equivalent(parsed_license, expected_license) for expected_license in expected_license_expressions):
+                errors.append("'license' value (\"{0}\") is not in the list of expected licenses: [{1}]".format(map_info_json['license'], ', '.join('"{0}"'.format(str(w)) for w in expected_license_expressions)))
+            else:
+                has_valid_license = True
+        except license_expression.ExpressionError as e:
+            errors.append("'license' value (\"{0}\") failed SPDX license expression parsing: {1}".format(map_info_json['license'], str(e)))
+
+    # - Must* have an author name
+    #   (*treated as a non-fatal error if map has a valid license)
     if not 'author' in map_info_json:
-        errors.append("Missing required 'author' key")
+        if 'additionalAuthors' in map_info_json:
+            errors.append("Missing required 'author' key, but has 'additionalAuthors'")
+        else:
+            if has_valid_license:
+                errors_non_fatal.append("Missing 'author' key")
+            else:
+                errors.append("Missing required 'author' key")
     else:
         if not 'name' in map_info_json['author']:
             errors.append("Missing required 'name' key under 'author' key")
@@ -94,18 +118,6 @@ def validate_map_info(map_info_json: dict, enforce_format_checks: bool=True, war
                 warnings.append("Empty 'name' value under 'author' key")
             elif author_name_length > MAX_ALLOWED_AUTHOR_NAME_LENGTH:
                 errors.append("'author.name' is > {0} chars - use a shorter author name".format(MAX_ALLOWED_AUTHOR_NAME_LENGTH))
-
-    # - Must have a license (and it must be a valid SPDX license identifier string)
-    #     - https://github.com/nexB/license-expression
-    if not 'license' in map_info_json:
-        errors.append("Missing required 'license' key")
-    else:
-        try:
-            parsed_license = licensing.parse(map_info_json['license'], validate=True, strict=True)
-            if not any(licensing.is_equivalent(parsed_license, expected_license) for expected_license in expected_license_expressions):
-                errors.append("'license' value (\"{0}\") is not in the list of expected licenses: [{1}]".format(map_info_json['license'], ', '.join('"{0}"'.format(str(w)) for w in expected_license_expressions)))
-        except license_expression.ExpressionError as e:
-            errors.append("'license' value (\"{0}\") failed SPDX license expression parsing: {1}".format(map_info_json['license'], str(e)))
 
     # - Should have a created date
     if 'created' in map_info_json:
@@ -219,7 +231,7 @@ def validate_map_info(map_info_json: dict, enforce_format_checks: bool=True, war
             if warning_options.format_warnings:
                 warnings.append("Map must be a 'flatMapPackage'")
     
-    return MapInfoValidationResult(warnings, errors, passedFormatChecks)
+    return MapInfoValidationResult(warnings, errors, passedFormatChecks, errors_non_fatal)
 
 def convert_map_info_date_to_yyyy_mm_dd(map_info_date: str) -> str:
     created_check_result = DATE_FORMAT_RE.match(map_info_date)
@@ -235,7 +247,8 @@ def convert_map_info_json_to_map_database_json(map_info_json: dict) -> OrderedDi
     output['slots'] = map_info_json['players']
     output['tileset'] = map_info_json['tileset']
     if not 'additionalAuthors' in map_info_json:
-        output['author'] = map_info_json['author']['name']
+        if 'author' in map_info_json:
+            output['author'] = map_info_json['author']['name']
     else:
         # create a list, if multiple authors
         author_list = [map_info_json['author']['name']]

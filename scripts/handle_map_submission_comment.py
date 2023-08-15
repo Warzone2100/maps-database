@@ -295,6 +295,8 @@ def build_map_submission_analysis_response(map_archive_path: Path, map_dl_detail
         result_lines.append('- 🖼 [Get Map Preview](https://github.com/{0}/actions/runs/{1})'.format(gh_repo, gh_run_id))
     result_lines.append('')
     result_lines.append('### Status: {0}'.format(', '.join([f'`{status}`' for status in validation_details.get_status_list()])))
+    if validation_details.passed_validation() and len(validation_details.info_validation_result.errors_non_fatal) > 0:
+        result_lines.append('\u26A0\uFE0F Non-Fatal Errors detected - please resolve if possible!')
     result_lines.append('')
     
     if len(validation_details.info_validation_result.errors) > 0:
@@ -302,6 +304,14 @@ def build_map_submission_analysis_response(map_archive_path: Path, map_dl_detail
         result_lines.append('```')
         for error in validation_details.info_validation_result.errors:
             result_lines.append(f'\N{cross mark} {error}')
+        result_lines.append('```')
+        result_lines.append('')
+    
+    if len(validation_details.info_validation_result.errors_non_fatal) > 0:
+        result_lines.append('### Non-Fatal Errors:')
+        result_lines.append('```')
+        for error in validation_details.info_validation_result.errors_non_fatal:
+            result_lines.append(f'\u26A0\uFE0F {error}')
         result_lines.append('```')
         result_lines.append('')
 
@@ -316,6 +326,8 @@ def build_map_submission_analysis_response(map_archive_path: Path, map_dl_detail
     recommendation_lines = []
     if len(validation_details.info_validation_result.errors) > 0:
         recommendation_lines.append('- Resolve validation errors listed above')
+    if len(validation_details.info_validation_result.errors_non_fatal) > 0:
+        recommendation_lines.append('- Resolve non-fatal validation errors listed above, if at all possible')
     if validation_details.needs_format_conversion():
         recommendation_lines.append('- Review the validation warnings for potential issues converting the map to the latest format (`Conversion Warning` / `Conversion Error`)')
         recommendation_lines.append('  - **Important:** Uploading this map will automatically convert it to the latest map format.')

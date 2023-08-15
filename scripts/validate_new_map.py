@@ -178,6 +178,8 @@ def print_map_validation_details(map_path: Path, validation_details: MapValidati
         pass
     print('')
     print('### Status: {0}'.format(', '.join([f'`{status}`' for status in validation_details.get_status_list()])))
+    if validation_details.passed_validation() and len(validation_details.info_validation_result.errors_non_fatal) > 0:
+        print('\u26A0\uFE0F Non-Fatal Errors detected - please resolve if possible!')
     print('')
     
     if len(validation_details.info_validation_result.errors) > 0:
@@ -186,7 +188,14 @@ def print_map_validation_details(map_path: Path, validation_details: MapValidati
         print('\n'.join([f'\N{cross mark} {error}' for error in validation_details.info_validation_result.errors]))
         print('```')
         print('')
-
+    
+    if len(validation_details.info_validation_result.errors_non_fatal) > 0:
+        print('### Non-Fatal Errors:')
+        print('```')
+        print('\n'.join([f'\u26A0\uFE0F {error}' for error in validation_details.info_validation_result.errors_non_fatal]))
+        print('```')
+        print('')
+    
     if len(validation_details.info_validation_result.warnings) > 0:
         print('### Warnings:')
         print('```')
@@ -197,6 +206,8 @@ def print_map_validation_details(map_path: Path, validation_details: MapValidati
     recommendation_lines = []
     if len(validation_details.info_validation_result.errors) > 0:
         recommendation_lines.append('- Resolve validation errors listed above')
+    if len(validation_details.info_validation_result.errors_non_fatal) > 0:
+        recommendation_lines.append('- Resolve non-fatal validation errors listed above, if at all possible')
     if validation_details.players_count_mismatch:
         recommendation_lines.append('- Map players ({0}) does not match expected number'.format(validation_details.map_info_json['players']))
         recommendation_lines.append('  - Are you uploading this map to the wrong map repo?')
@@ -314,7 +325,7 @@ def build_uniqueness_checker(output_temp_folder: Path, local_map_repos_args_inpu
                 map_repo = split_entry[0]
                 local_repo_path = Path(split_entry[1])
                 if not local_repo_path.exists():
-                    raise ValueError('Specified local repo path {0} does not exist'.format(local_repo_path), file=sys.stderr)
+                    raise ValueError('Specified local repo path {0} does not exist'.format(local_repo_path))
                 existing_local_repos[map_repo] = local_repo_path
             
     uniqueness_checker = MapNameUniquenessCheck(output_temp_folder, existing_local_repos)

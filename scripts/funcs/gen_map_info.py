@@ -75,6 +75,8 @@ def generate_release_maps_info(assets_folder: str, map_repo_name: str, release_t
             #print("{0}: Validation Errors: {1}".format(map_package, pprint.pformat(map_validation_result.errors)))
             print("Error: {0} - Validation Errors \n\t{1}".format(map_package, '\n\t'.join(map_validation_result.errors)))
             continue
+        if len(map_validation_result.errors_non_fatal) > 0:
+            print('Warning: {0} - Validation Errors (Non-Fatal): \n\t{1}'.format(map_package, '\n\t'.join(map_validation_result.errors_non_fatal)))
         if len(map_validation_result.warnings) > 0:
             print('Warning: {0} - Validation Warnings: \n\t{1}'.format(map_package, '\n\t'.join(map_validation_result.warnings)))
         

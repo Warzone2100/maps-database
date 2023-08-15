@@ -123,6 +123,8 @@ def generate_releases_for_maprepo(repo_local_path: Path, last_processed_commit: 
                 #print("Error: {0} - Validation Errors \n\t{1}".format(mapFolder, pprint.pformat(map_validation_result.errors)))
                 print("Error: {0} - Validation Errors \n\t{1}".format(mapFolder, '\n\t'.join(map_validation_result.errors)))
                 continue
+            if len(map_validation_result.errors_non_fatal) > 0:
+                print('Warning: {0} - Validation Errors (Non-Fatal): \n\t{1}'.format(mapFolder, '\n\t'.join(map_validation_result.errors_non_fatal)))
             if len(map_validation_result.warnings) > 0:
                 print('Warning: {0} - Validation Warnings: \n\t{1}'.format(mapFolder, '\n\t'.join(map_validation_result.warnings)))
             map_players = map_info_json['players']
