@@ -300,7 +300,7 @@ def build_map_submission_analysis_response(map_archive_path: Path, map_dl_detail
     result_lines.append('')
     result_lines.append('### Status: {0}'.format(', '.join([f'`{status}`' for status in validation_details.get_status_list()])))
     if validation_details.passed_validation() and len(validation_details.info_validation_result.errors_non_fatal) > 0:
-        result_lines.append('\u26A0\uFE0F Non-Fatal Errors detected - please resolve if possible!')
+        result_lines.append('> \u26A0\uFE0F Non-Fatal Errors detected - please resolve if possible!')
     result_lines.append('')
     
     if len(validation_details.info_validation_result.errors) > 0:
