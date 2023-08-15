@@ -878,7 +878,7 @@ def handle_gh_map_submission_approval(map_repos_config_json_path: str, output_te
     
     # Attempt to add a comment to the submission issue (and close it)
     gh_issue_remove_triage_label = subprocess_run_modification_cmd_wrapper(dry_run, [tools.gh_cli_exe, 'issue', 'edit', gh_issue_obj['html_url'], '--add-label', 'approved', '--remove-label', 'unprocessed,needs approval'], stdout=subprocess.PIPE) # we don't care if this fails
-    gh_issue_close_result = subprocess_run_modification_cmd_wrapper(dry_run, [tools.gh_cli_exe, 'issue', 'close', gh_issue_obj['html_url'], '--reason', 'completed', '--comment', 'Map processed and uploaded'], stdout=subprocess.PIPE)
+    gh_issue_close_result = subprocess_run_modification_cmd_wrapper(dry_run, [tools.gh_cli_exe, 'issue', 'close', gh_issue_obj['html_url'], '--reason', 'completed', '--comment', 'Map processed and uploaded.\n\n(Queued for publishing with next map database rebuild.)'], stdout=subprocess.PIPE)
     if not gh_issue_close_result.returncode == 0:
         # Just ignore errors at this point - just print a debug message
         print('Failed to close issue {0}, but succeeded uploading the map'.format(current_issue_number))
