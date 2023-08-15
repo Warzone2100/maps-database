@@ -154,8 +154,15 @@ jobs:
             fi
           fi
           
-          "${MAP_DB_REPO_PATH}/scripts/validate_new_map.py" --map-repos-config "${MAP_DB_REPO_PATH}/config/map-repos-config.json" --output-temp-folder "${TEMP_OUTPUT_DIR}" --local-map-repo "${GITHUB_REPOSITORY}@${REPO_PATH}" --expected-players "${EXPECTED_MAX_PLAYERS}" map-list "./map_list_test.txt" >> $GITHUB_STEP_SUMMARY
-          VALIDATE_RESULT_CODE=$?
+          # validate new maps
+          if [ "${GITHUB_EVENT_NAME}" == "push" ]; then
+            # Skip name conflict checking and specify local-map-repo
+            "${MAP_DB_REPO_PATH}/scripts/validate_new_map.py" --map-repos-config "${MAP_DB_REPO_PATH}/config/map-repos-config.json" --output-temp-folder "${TEMP_OUTPUT_DIR}" --skip-uniqueness-checks --local-map-repo "${GITHUB_REPOSITORY}@${REPO_PATH}" --expected-players "${EXPECTED_MAX_PLAYERS}" map-list "./map_list_test.txt" >> $GITHUB_STEP_SUMMARY
+            VALIDATE_RESULT_CODE=$?
+          else
+            "${MAP_DB_REPO_PATH}/scripts/validate_new_map.py" --map-repos-config "${MAP_DB_REPO_PATH}/config/map-repos-config.json" --output-temp-folder "${TEMP_OUTPUT_DIR}" --expected-players "${EXPECTED_MAX_PLAYERS}" map-list "./map_list_test.txt" >> $GITHUB_STEP_SUMMARY
+            VALIDATE_RESULT_CODE=$?
+          fi
           
           if [ ${VALIDATE_RESULT_CODE} -ne 0 ]; then
             # Error
