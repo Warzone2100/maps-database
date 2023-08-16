@@ -296,7 +296,7 @@ def build_map_submission_analysis_response(map_archive_path: Path, map_dl_detail
     result_lines.append('')
     result_lines.append('- 📦 [Map Package (`{0}`)]({1})'.format(map_dl_file_name, map_dl_details['url']))
     if gh_run_id:
-        result_lines.append('- 🖼 [Get Map Preview](https://github.com/{0}/actions/runs/{1})'.format(gh_repo, gh_run_id))
+        result_lines.append('- 🖼 [Get Map Preview](https://github.com/{0}/actions/runs/{1}#artifacts)'.format(gh_repo, gh_run_id))
     result_lines.append('')
     result_lines.append('### Status: {0}'.format(', '.join([f'`{status}`' for status in validation_details.get_status_list()])))
     if validation_details.passed_validation() and len(validation_details.info_validation_result.errors_non_fatal) > 0:
@@ -336,7 +336,7 @@ def build_map_submission_analysis_response(map_archive_path: Path, map_dl_detail
         recommendation_lines.append('- Review the validation warnings for potential issues converting the map to the latest format (`Conversion Warning` / `Conversion Error`)')
         recommendation_lines.append('  - **Important:** Uploading this map will automatically convert it to the latest map format.')
         if gh_run_id:
-            recommendation_lines.append('  - For convenience, a copy of the map that has been converted to the latest map format is available [here](https://github.com/{0}/actions/runs/{1}) as an artifact named `map-converted`.'.format(gh_repo, gh_run_id))
+            recommendation_lines.append('  - For convenience, a copy of the map that has been converted to the latest map format is available [here](https://github.com/{0}/actions/runs/{1}#artifacts) as an artifact named `map-converted`.'.format(gh_repo, gh_run_id))
     if validation_details.name_conflict:
         recommendation_lines.append('- Rename the map (conflicts with a map that already has the name `{0}`)'.format(validation_details.map_info_json['name']))
         recommendation_lines.append('  - If this is a new version, you can append a version (ex. `{0}-v2`)'.format(validation_details.map_info_json['name']))
