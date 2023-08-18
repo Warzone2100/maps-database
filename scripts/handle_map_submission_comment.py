@@ -441,7 +441,7 @@ def build_map_submission_analysis_response(map_archive_path: Path, map_dl_detail
         result_lines.append('')
         result_lines.append('<summary>How to Approve This Map Upload:</summary>')
         result_lines.append('')
-        result_lines.append('> You **must** have triage privileges on this repo to approve a map upload.')
+        result_lines.append('> You **must** have triage privileges on this repo to approve a map upload. @Warzone2100/map-reviewer-team')
         result_lines.append('1. Copy the following into a new comment:')
         result_lines.append('```')
         result_lines.append('/approve')
