@@ -352,7 +352,7 @@
         <form class="row gy-2 gx-3 pt-1 align-items-center">
           <div class="col-auto">
             <div class="input-group">
-              <span class="input-group-text" id="basic-addon1">Players:</span>
+              <span class="input-group-text" id="basic-players">Players:</span>
               <select id="filter-players-mode" class="form-select">
                 <option value="<=">&lt;=</option>
                 <option value="==" selected>==</option>
@@ -374,7 +374,7 @@
           </div>
           <div class="col-auto">
             <div class="input-group">
-              <span class="input-group-text" id="basic-addon1">Size:</span>
+              <span class="input-group-text" id="basic-size">Size:</span>
               <select id="filter-size-mode" class="form-select">
                 <option value="<=">&lt;=</option>
                 <option value="==">==</option>
@@ -387,7 +387,7 @@
           </div>
           <div class="col-auto">
             <div class="input-group">
-              <span class="input-group-text" id="basic-addon1">Oil by player:</span>
+              <span class="input-group-text" id="basic-oilbyplayer">Oil by player:</span>
               <select id="filter-oil-by-player-mode" class="form-select">
                 <option value="<=">&lt;=</option>
                 <option value="==">==</option>
@@ -398,7 +398,7 @@
           </div>
           <div class="col-auto">
             <div class="input-group">
-              <span class="input-group-text" id="basic-addon1">Scavengers:</span>
+              <span class="input-group-text" id="basic-scavengers">Scavengers:</span>
               <select id="filter-scavengers" class="form-select">
                 <option value="*" selected>*</option>
                 <option value="yes">Yes</option>
@@ -408,7 +408,7 @@
           </div>
           <div class="col-auto">
             <div class="input-group">
-              <span class="input-group-text" id="basic-addon1">Balance:</span>
+              <span class="input-group-text" id="basic-balance">Balance:</span>
               <select id="filter-balance" class="form-select">
                 <option value="*" selected>*</option>
                 <option value="==">==</option>
@@ -418,11 +418,22 @@
           </div>
           <div class="col-auto">
             <div class="input-group">
-              <span class="input-group-text" id="basic-addon1">Map type:</span>
+              <span class="input-group-text" id="basic-maptype">Map type:</span>
               <select id="filter-map-type" class="form-select">
                 <option value="*" selected>*</option>
                 <option value="normal">Normal</option>
                 <option value="script">Script-Generated</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-auto">
+            <div class="input-group">
+              <span class="input-group-text" id="basic-tileset">Tileset:</span>
+              <select id="filter-tileset" class="form-select">
+                <option value="*" selected>*</option>
+                <option value="arizona">arizona</option>
+                <option value="urban">urban</option>
+                <option value="rockies">rockies</option>
               </select>
             </div>
           </div>
@@ -1153,6 +1164,10 @@
             break;
           }
           
+          if (filters.tileset && filters.tileset != '*') {
+            return row.tileset == filters.tileset;
+          }
+          
           return true;
         }
           
@@ -1189,6 +1204,7 @@
             filters.scavengers = document.getElementById('filter-scavengers').value;
             filters.balance = document.getElementById('filter-balance').value;
             filters.mapType = document.getElementById('filter-map-type').value;
+            filters.tileset = document.getElementById('filter-tileset').value;
           }
           $table.bootstrapTable('filterBy', filters, {
             'filterAlgorithm': mapsTableFilterAlgorithm
@@ -1206,6 +1222,7 @@
             document.getElementById('filter-scavengers').value = '*';
             document.getElementById('filter-balance').value = '*';
             document.getElementById('filter-map-type').value = '*';
+            document.getElementById('filter-tileset').value = '*';
           }
         }
         
