@@ -67,7 +67,7 @@ def dl_gh_attachment(url: str, gh_repo: str, output_path: Path) -> dict:
     if not re.match(r'^(?:.*\.)?github.com(?:\:.*)?$', split_dl_url.netloc):
         raise ValueError('Unexpected GitHub attachment URL: {0}'.format(url))
     # - path begins with: {gh_repo}/files/
-    if not re.match(r'^[/]?{0}/files/'.format(gh_repo), split_dl_url.path):
+    if (not re.match(r'^[/]?{0}/files/'.format(gh_repo), split_dl_url.path)) and (not re.match(r'^[/]?user-attachments/files/', split_dl_url.path)):
         raise ValueError('Unexpected GitHub attachment URL path: {0}'.format(url))
     
     with requests.get(url, stream=True) as r:
