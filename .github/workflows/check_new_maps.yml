@@ -22,7 +22,7 @@ jobs:
     name: 'check.new.maps'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: 'main'
 
@@ -33,7 +33,7 @@ jobs:
         run: |
           git clone --branch "${MAP_DB_REPO_MAIN_BRANCH}" --depth 1 --single-branch -- "${MAP_DB_REPO_URL}" "map-db"
       
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip' # caching pip dependencies
