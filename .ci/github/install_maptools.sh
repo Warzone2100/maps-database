@@ -6,8 +6,8 @@
 # - prepend the install folder path to the system path (using GITHUB_PATH)
 
 # When updating maptools, make sure all the scripts/* can handle any breaking changes
-MAPTOOLS_DL_URL="https://github.com/Warzone2100/maptools-cli/releases/download/v1.2.5/maptools-linux.zip"
-MAPTOOLS_DL_SHA512="41a0f44cac63e4d6bafa1996a1bad73fc7ed9fb84076589afceb80876326c2c77e19ff32015b47c453d12eac7b1a6586f70fc8cb0a27d75fa5deb62c106eb1d1"
+MAPTOOLS_DL_URL="https://github.com/Warzone2100/maptools-cli/releases/download/v1.2.6/maptools-linux.zip"
+MAPTOOLS_DL_SHA512="defd4a186a7ee24b805f6e0aaed3cfb4e747fe2eae1500acb92ba5aa51331538121cf47457303975d0731dde2717f5fab3d0991f89ee133eb0b73259b110eaad"
 
 curl -L --retry 3 --output "maptools-linux.zip" "${MAPTOOLS_DL_URL}"
 DL_SHA512=$(sha512sum --binary "maptools-linux.zip" | cut -d " " -f 1)
