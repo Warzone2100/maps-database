@@ -101,8 +101,7 @@ jobs:
           ret="$?"
           if [ $ret -ne 0 ]; then
             # No new maps processed
-            echo "PROCESS_DEPLOYMENT=false" >> $GITHUB_OUTPUT
-            exit 0
+            echo "No new maps processed"
           fi
           set -e
           
