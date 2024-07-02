@@ -726,6 +726,7 @@
           </div>
         </div>
         <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary me-auto" onclick="copyToClipboard('{{ row/download/hash }}');">Copy SHA-256</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
           <a class="btn btn-primary btn-block text-truncate" title="Download Map" href="%PRIMARY_DOWNLOAD_URL%" rel="noopener noreferrer nofollow"><i class="bi bi-download"></i> Download Map</a>
         </div>
@@ -1506,6 +1507,14 @@
             return;
           }
           openDownloadInNewWindow(primaryDownloadURL);
+        }
+        
+        function copyToClipboard(text) {
+          navigator.clipboard.writeText(text).then(function() {
+            console.log('Copied text to clipboard');
+          }, function(err) {
+            console.error('Could not copy text to clipboard: ', err);
+          });
         }
         
         function openDownloadLinkByIndex(index) {
