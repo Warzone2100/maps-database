@@ -125,7 +125,12 @@ def validate_map(map_path: Path, check_for_name_conflict: bool, repos_config: Ma
     # Extract map info json
     maptools_info_result = subprocess.run([tools.maptools_exe, 'package', 'info', map_path], capture_output=True)
     if not maptools_info_result.returncode == 0:
-        raise FailedToProcessMapError('Invalid map - maptools package info command failed with exit code: {0}'.format(maptools_info_result.returncode))
+        failure_details = ''
+        if len(maptools_info_result.stdout) > 0:
+            failure_details += '\n-----STDOUT:-----\n{0}\n----------'.format(maptools_info_result.stdout)
+        if len(maptools_info_result.stderr) > 0:
+            failure_details += '\n-----STDERR:-----\n{0}\n----------'.format(maptools_info_result.stderr)
+        raise FailedToProcessMapError('Invalid map - maptools package info command failed with exit code: {0}{1}'.format(maptools_info_result.returncode, failure_details))
     
     # Validate map info json (ValidationErrors)
     map_info_json = json.loads(maptools_info_result.stdout, object_pairs_hook=OrderedDict)
