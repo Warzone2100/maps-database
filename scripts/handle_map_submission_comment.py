@@ -503,6 +503,7 @@ def validate_gh_map_submission_comment(map_repos_config_json_path: str, output_t
         validation_details = validate_map(temp_archive_dl_path, True, repos_config, tools, uniqueness_checker, enforce_format_checks=False)
     except FailedToProcessMapError as e:
         print('ERROR: Failed to process map attachment - invalid map package?', file=sys.stderr)
+        print(e, file=sys.stderr)
         return MapSubmissionContentProcessingResult.FAILURE
     
     # Generate various output assets (if requested), like a map preview
