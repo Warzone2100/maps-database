@@ -5,6 +5,15 @@ on:
     workflows: [Scheduled Map Update]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      updateMode:
+        description: 'Update Mode'
+        required: true
+        default: 'update'
+        type: choice
+        options:
+        - update
+        - rebuild_db
 
 concurrency: update_map_database
 
@@ -59,6 +68,16 @@ jobs:
           mkdir -p "${TEMP_WORKING_DIR}"
           echo "TEMP_WORKING_DIR=${TEMP_WORKING_DIR}" >> $GITHUB_OUTPUT
 
+      - name: 'Process input options'
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          UPDATE_MODE: ${{ inputs.updateMode }}
+        run: |
+          if [ "$UPDATE_MODE" == "rebuild_db" ]; then
+            echo "WZ_MAP_DB_FULL_REBUILD=true"
+            echo "WZ_MAP_DB_FULL_REBUILD=true" >> $GITHUB_ENV
+          fi
+
       - name: 'Process new maps & update database'
         id: build
         env:
@@ -91,9 +110,15 @@ jobs:
           git -C "${MAP_DB_DEPLOY_PATH}" rm -rf .
           # Copy the site template contents into the new build branch, excluding anything that would conflict with the api/ folder
           rsync -avhW --compress-level=0 --exclude 'api/' "${map_db_site_template_src}/" "${MAP_DB_DEPLOY_PATH}"
-          # Restore the data root (api/)
+          
+          # Restore the data root (api/) - unless full rebuild
           mkdir -p "${map_db_data_root}"
-          cp -R -a "${map_db_data_root_backup}/." "${map_db_data_root}/"
+          if [ "$WZ_MAP_DB_FULL_REBUILD" != "true" ]; then
+            echo "Restoring data root"
+            cp -R -a "${map_db_data_root_backup}/." "${map_db_data_root}/"
+          else
+            echo "Skipping data root restore"
+          fi
           
           # Run the process new maps script
           set +e
