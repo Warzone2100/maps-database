@@ -4,7 +4,8 @@
       "https://github.com/Warzone2100/maps-{{download/repo}}/releases/download/{{download/path}}"
     ],
     "preview": {
-      "2d": "https://maps-assets.wz2100.net/v1/maps/{{download/hash}}/preview.png"
+      "2d": "https://maps-assets.wz2100.net/v1/maps/{{download/hash}}/preview.png",
+      "terrain": "https://maps-assets.wz2100.net/v1/maps/{{download/hash}}/terrain.png"
     },
     "readme": {
       "en": "https://maps-assets.wz2100.net/v1/maps/{{download/hash}}/readme.md"

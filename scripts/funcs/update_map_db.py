@@ -80,6 +80,25 @@ def merge_dicts_shallow(a, b):
     c.update(b)
     return c
 
+def publish_png_to_mapassets_database(map_hash: str, png_name: str, map_db_assets_root: str, source_assets_dir: str, tools: MapDatabaseExternalTools):
+  # Output the preview.png to /<assets_dir>/preview/<first two of hash>/<hash>.png
+  api_map_preview_components = generate_map_info_path_components(map_hash, png_name)
+  map_preview_dir = os.path.join(map_db_assets_root, *api_map_preview_components)
+  map_preview_png_path = os.path.join(map_preview_dir, '{0}.png'.format(map_hash))
+  src_preview_path = os.path.join(source_assets_dir, '{0}.png'.format(png_name))
+  if os.path.exists(src_preview_path):
+      os.makedirs(map_preview_dir, exist_ok=True)
+      shutil.copy2(src_preview_path, map_preview_png_path)
+      
+      # Optimize the preview PNG (in-place)
+      original_png_filesize = os.stat(map_preview_png_path).st_size
+      compress_map_preview_png(map_preview_png_path, tools, allowLossy=True)
+      resulting_png_filesize = os.stat(map_preview_png_path).st_size
+      if resulting_png_filesize != original_png_filesize:
+          print("Optimized {2} PNG: {0:.3f} - {1}".format((original_png_filesize - resulting_png_filesize) / original_png_filesize, os.path.basename(map_preview_png_path), png_name))
+  else:
+      print('Warning: Missing {0} image: {1}'.format(png_name, map_preview_png_path))
+
 def publish_maprepo_release_to_mapassets_database(map_repo_name: str, release_tag_name: str, release_maps_info_folder: str, map_db_assets_root: str, tools: MapDatabaseExternalTools) -> list[OrderedDict]:
     
     # Read in the release-map-info.json file from the release_maps_info_folder
@@ -116,22 +135,10 @@ def publish_maprepo_release_to_mapassets_database(map_repo_name: str, release_ta
             shutil.copy2(src_readme_path, os.path.join(map_readme_dir, '{0}.md'.format(map_hash)))
         
         # Output the preview.png to /<assets_dir>/preview/<first two of hash>/<hash>.png
-        api_map_preview_components = generate_map_info_path_components(map_hash, 'preview')
-        map_preview_dir = os.path.join(map_db_assets_root, *api_map_preview_components)
-        map_preview_png_path = os.path.join(map_preview_dir, '{0}.png'.format(map_hash))
-        src_preview_path = os.path.join(source_assets_dir, 'preview.png')
-        if os.path.exists(src_preview_path):
-            os.makedirs(map_preview_dir, exist_ok=True)
-            shutil.copy2(src_preview_path, map_preview_png_path)
-            
-            # Optimize the preview PNG (in-place)
-            original_png_filesize = os.stat(map_preview_png_path).st_size
-            compress_map_preview_png(map_preview_png_path, tools, allowLossy=True)
-            resulting_png_filesize = os.stat(map_preview_png_path).st_size
-            if resulting_png_filesize != original_png_filesize:
-                print("Optimized PNG: {0:.3f} - {1}".format((original_png_filesize - resulting_png_filesize) / original_png_filesize, os.path.basename(map_preview_png_path)))
-        else:
-            print('Warning: Missing preview image: {0}'.format(map_preview_png_path))
+        publish_png_to_mapassets_database(map_hash, 'preview', map_db_assets_root, source_assets_dir, tools)
+        
+        # Output the terrain.png to /<assets_dir>/terrain/<first two of hash>/<hash>.png
+        publish_png_to_mapassets_database(map_hash, 'terrain', map_db_assets_root, source_assets_dir, tools)
         
         maps_added.append(map_db_formatted_info)
     

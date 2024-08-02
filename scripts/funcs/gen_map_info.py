@@ -30,6 +30,14 @@ def generate_map_preview_png(map_package_fullpath: str, png_output_fullpath: str
     
     return True
 
+def generate_map_terrain_png(map_package_fullpath: str, png_output_fullpath: str, tools: MapRepoExternalTools):
+    maptools_genpreview_result = subprocess.run([tools.maptools_exe, 'package', 'genpreview', '--layers=terrain', map_package_fullpath, png_output_fullpath], stdout=subprocess.PIPE)
+    if not maptools_genpreview_result.returncode == 0:
+        print('Warning: maptools package genpreview {0} command failed with exit code: {1}'.format(map_package, maptools_genpreview_result.returncode))
+        return False
+    
+    return True
+
 def add_download_info_to_dict(archive_path: str, info_dict: OrderedDict):
     # Get SHA256 hash (and size) of file
     sha256_hash = hashlib.sha256()
@@ -100,6 +108,9 @@ def generate_release_maps_info(assets_folder: str, map_repo_name: str, release_t
         
         # Generate a preview PNG
         generate_map_preview_png(map_package_fullpath, os.path.join(info_output_folder, download_info['hash'], 'preview.png'), tools)
+        
+        # Generate a terrain PNG
+        generate_map_terrain_png(map_package_fullpath, os.path.join(info_output_folder, download_info['hash'], 'terrain.png'), tools)
         
         # Extract any README.md from the map package, and copy to output folder
         with zipfile.ZipFile(map_package_fullpath) as z:
