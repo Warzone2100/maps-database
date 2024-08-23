@@ -269,7 +269,7 @@ def convert_map_info_json_to_map_database_json(map_info_json: dict) -> OrderedDi
     per_player_counts = map_info_json['player']
     player_balance = OrderedDict()
     player_balance['units'] = {'eq': start_equality_info['units'], 'min': per_player_counts['units']['min'], 'max': per_player_counts['units']['max']}
-    player_balance['structs'] = {'eq': start_equality_info['structures'], 'min': per_player_counts['units']['min'], 'max': per_player_counts['structures']['max']}
+    player_balance['structs'] = {'eq': start_equality_info['structures'], 'min': per_player_counts['structures']['min'], 'max': per_player_counts['structures']['max']}
     player_balance['resourceExtr'] = {'eq': start_equality_info['resourceExtractors'], 'min': per_player_counts['resourceExtractors']['min'], 'max': per_player_counts['resourceExtractors']['max']}
     player_balance['pwrGen'] = {'eq': start_equality_info['powerGenerators'], 'min': per_player_counts['powerGenerators']['min'], 'max': per_player_counts['powerGenerators']['max']}
     player_balance['regFact'] = {'eq': start_equality_info['regFactories'], 'min': per_player_counts['regFactories']['min'], 'max': per_player_counts['regFactories']['max']}
