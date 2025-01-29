@@ -112,7 +112,7 @@ def generate_releases_for_maprepo(repo_local_path: Path, last_processed_commit: 
             mapFolderFullPath = str(repo_local_path.joinpath(mapFolder))
             
             # Extract map info
-            maptools_info_result = subprocess.run([tools.maptools_exe, 'package', 'info', mapFolderFullPath], stdout=subprocess.PIPE)
+            maptools_info_result = subprocess.run([tools.maptools_exe, 'package', 'info', '--map-seed=0', mapFolderFullPath], stdout=subprocess.PIPE)
             if not maptools_info_result.returncode == 0:
                 print('Error: {0} - maptools package info command failed with exit code: {1}'.format(mapFolder, maptools_info_result.returncode))
                 continue

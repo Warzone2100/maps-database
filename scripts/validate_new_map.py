@@ -123,7 +123,7 @@ def validate_map(map_path: Path, check_for_name_conflict: bool, repos_config: Ma
         raise ValueError('Failed to find maptools executable')
     
     # Extract map info json
-    maptools_info_result = subprocess.run([tools.maptools_exe, 'package', 'info', map_path], capture_output=True)
+    maptools_info_result = subprocess.run([tools.maptools_exe, 'package', 'info', '--map-seed=0', map_path], capture_output=True)
     if not maptools_info_result.returncode == 0:
         failure_details = ''
         if len(maptools_info_result.stdout) > 0:
