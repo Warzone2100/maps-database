@@ -156,7 +156,7 @@ REGEX_FIND_UPLOAD_MAP_SECTION = r'(?sm)(?<=### Upload Map[\r\n])(.*?)(?=[\r\n]*^
 def parse_md_url_from_text(gh_markdown_text: str):
     name_regex = "[^]]+"
     url_regex = "http[s]?://[^)]+"
-    markup_regex = '\[({0})]\(\s*({1})\s*\)'.format(name_regex, url_regex)
+    markup_regex = r'\[({0})]\(\s*({1})\s*\)'.format(name_regex, url_regex)
     found_urls = [match[1] for match in re.findall(markup_regex, gh_markdown_text)]
     return found_urls
 
@@ -629,14 +629,14 @@ class WZMapSubmissionValidationCommentDetails:
                 pass
         
     def get_description_body(self) -> str | None:
-        if not 'body' in self.description:
+        if 'body' not in self.description:
             return None
         return self.description['body']
         
     def description_body_matches_expected(self) -> bool:
         body_text = self.get_description_body()
-        if body_text is None:
-            if ((not 'size' in self.description) or (self.description['size'] == 0)):
+        if not body_text:
+            if (('size' not in self.description) or (self.description['size'] == 0)):
                 # expecting no description
                 return True
             else:
