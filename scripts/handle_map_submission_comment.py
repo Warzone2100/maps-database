@@ -757,6 +757,21 @@ def find_approved_gh_issue_validation_comment(gh_repo: str, gh_issue_obj: dict, 
     # did not find a match
     raise ValueError('ERROR: Failed to find validation results in issue ({0}) comments'.format(current_issue_number))
 
+def description_readme_bytes(description_body: str | None) -> bytes | None:
+    if not (description_body and re.match(r'[\S]+', description_body)): # If description is present and is not just whitespace
+        return None
+    # Convert any CRLF line endings to LF
+    description_body_binary = description_body.encode('utf-8')
+    description_body_binary = description_body_binary.replace(b'\r\n', b'\n')
+    description_body_binary = description_body_binary.replace(b'\r', b'\n')
+    return description_body_binary
+
+def approved_map_commit_title(map_name: str) -> str:
+    return 'Add Map: {0}'.format(map_name)
+
+def is_valid_map_name(map_name) -> bool:
+    return isinstance(map_name, str) and len(map_name) <= MAX_ALLOWED_MAP_NAME_LENGTH and bool(NAME_FORMAT_RE.match(map_name))
+
 def git_env_with_github_token(token: str) -> dict:
     env = os.environ.copy()
     try:
@@ -778,7 +793,7 @@ class MapSubmissionApprovalResult(IntEnum):
     FAILURE_MAP_CONVERSION = 4
     FAILURE_PERMISSIONS = 5
 
-def handle_gh_map_submission_approval(map_repos_config_json_path: str, output_temp_folder: Path, gh_repo: str, gh_run_id: str, gh_issue_obj: dict, gh_comment_obj: dict, dry_run: bool = False, map_repo_management_token_provider: WZGithubAppTokenProvider | None = None, tools: MapRepoExternalTools = MapRepoExternalTools()) -> MapSubmissionApprovalResult:
+def handle_gh_map_submission_approval(map_repos_config_json_path: str, output_temp_folder: Path, gh_repo: str, gh_run_id: str, gh_issue_obj: dict, gh_comment_obj: dict, dry_run: bool = False, map_repo_management_token_provider: WZGithubAppTokenProvider | None = None, tools: MapRepoExternalTools = MapRepoExternalTools(), approval_output_folder: Path | None = None) -> MapSubmissionApprovalResult:
     # IMPORTANT: Verify that the author of the “/approve <issue_number>/<comment_id>” comment has triage (or higher) priviliges for this repo
     if not verify_gh_user_has_permissions_on_repo(gh_repo, gh_comment_obj['user']['login'], ['triage'], tools):
         print('ERROR: User does not have necessary permissions for this action', file=sys.stderr)
@@ -851,7 +866,7 @@ def handle_gh_map_submission_approval(map_repos_config_json_path: str, output_te
     # Use maptools to convert the map to the latest format as a map folder (NOTE: could use --preserve-mods in the future once we support flat map stats / texture / etc modifications?)
     # NOTE: The name comes from the comment and is used as a path (removed below if it exists)
     approved_map_name = approved_map_info.map_info.get('name') if isinstance(approved_map_info.map_info, dict) else None
-    if not isinstance(approved_map_name, str) or len(approved_map_name) > MAX_ALLOWED_MAP_NAME_LENGTH or not NAME_FORMAT_RE.match(approved_map_name):
+    if not is_valid_map_name(approved_map_name):
         print('ERROR: Invalid map name in approved validation comment: {0!r}'.format(approved_map_name), file=sys.stderr)
         return MapSubmissionApprovalResult.FAILURE
     temp_converted_map_folder = output_temp_folder.joinpath('converted', approved_map_name)
@@ -879,12 +894,8 @@ def handle_gh_map_submission_approval(map_repos_config_json_path: str, output_te
         return MapSubmissionApprovalResult.FAILURE
     
     # Write out the description (if present) as README.md
-    description_body = approved_map_info.get_description_body()
-    if description_body and re.match(r'[\S]+', description_body): # If description is present and is not just whitespace
-        # Convert any CRLF line endings to LF
-        description_body_binary = description_body.encode('utf-8')
-        description_body_binary = description_body_binary.replace(b'\r\n', b'\n')
-        description_body_binary = description_body_binary.replace(b'\r', b'\n')
+    description_body_binary = description_readme_bytes(approved_map_info.get_description_body())
+    if description_body_binary is not None:
         # Write out description to README.md in map folder
         description_readme_filepath = temp_converted_map_folder.joinpath('README.md')
         with open(description_readme_filepath, mode='wb') as f:
@@ -918,7 +929,7 @@ def handle_gh_map_submission_approval(map_repos_config_json_path: str, output_te
         subprocess_run_modification_cmd_wrapper(dry_run, [tools.git_exe, 'config', '--local', 'user.email', '{0}+{1}@users.noreply.github.com'.format(gh_comment_obj['user']['id'], gh_comment_obj['user']['login'])], cwd=maprepo_local_path, check=True)
         subprocess_run_modification_cmd_wrapper(dry_run, [tools.git_exe, 'config', '--local', 'user.name', gh_comment_obj['user']['login']], cwd=maprepo_local_path, check=True)
         # - Prepare a commit body, referencing the map submission issue (with a link)
-        commit_title = 'Add Map: {0}'.format(validation_details.map_info_json['name'])
+        commit_title = approved_map_commit_title(validation_details.map_info_json['name'])
         commit_msg = 'Map submission: {0}'.format(gh_issue_obj['html_url'])
         
         # Stage all new files
@@ -930,6 +941,10 @@ def handle_gh_map_submission_approval(map_repos_config_json_path: str, output_te
     except subprocess.CalledProcessError as e:
         print(str(e), file=sys.stderr)
         return MapSubmissionApprovalResult.FAILURE
+    
+    if approval_output_folder:
+        # Export the commit for push_approved_map_submission.py to verify and push from a separate job
+        return export_approved_map_commit(maprepo_local_path, submission_repo, validation_details.map_info_json['name'], gh_issue_obj, gh_comment_obj, approval_output_folder, tools)
 
     # Push the new commit to the appropriate map repo’s main branch (potentially using an access token)
     git_push_env = None
@@ -959,16 +974,49 @@ def handle_gh_map_submission_approval(map_repos_config_json_path: str, output_te
         print('DRYRUN - Would push new commit in {0} to: https://github.com/{1}.git:main'.format(maprepo_local_path, submission_repo))
     
     # Attempt to add a comment to the submission issue (and close it)
+    close_approved_map_submission_issue(gh_issue_obj, dry_run, tools)
+    
+    return MapSubmissionApprovalResult.SUCCESS
+
+def close_approved_map_submission_issue(gh_issue_obj: dict, dry_run: bool, tools: MapRepoExternalTools):
     gh_issue_remove_triage_label = subprocess_run_modification_cmd_wrapper(dry_run, [tools.gh_cli_exe, 'issue', 'edit', gh_issue_obj['html_url'], '--add-label', 'approved', '--remove-label', 'unprocessed,needs approval'], stdout=subprocess.PIPE) # we don't care if this fails
     gh_issue_close_result = subprocess_run_modification_cmd_wrapper(dry_run, [tools.gh_cli_exe, 'issue', 'close', gh_issue_obj['html_url'], '--reason', 'completed', '--comment', 'Map processed and uploaded.\n\n(Queued for publishing with next map database rebuild.)'], stdout=subprocess.PIPE)
     if not gh_issue_close_result.returncode == 0:
         # Just ignore errors at this point - just print a debug message
-        print('Failed to close issue {0}, but succeeded uploading the map'.format(current_issue_number))
+        print('Failed to close issue {0}, but succeeded uploading the map'.format(gh_issue_obj['number']))
+
+APPROVAL_EXPORT_BUNDLE_FILENAME = 'map-commit.bundle'
+APPROVAL_EXPORT_INFO_FILENAME = 'approval.json'
+APPROVAL_EXPORT_BRANCH_REF = 'refs/heads/main'
+
+def export_approved_map_commit(maprepo_local_path: Path, submission_repo: str, map_name: str, gh_issue_obj: dict, gh_comment_obj: dict, approval_output_folder: Path, tools: MapRepoExternalTools) -> MapSubmissionApprovalResult:
+    # NOTE: approval.json is informational (the push job re-derives everything and only cross-checks it)
+    try:
+        base_commit = subprocess.run([tools.git_exe, 'rev-parse', '--verify', 'refs/remotes/origin/main^{commit}'], cwd=maprepo_local_path, check=True, stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
+        new_commit = subprocess.run([tools.git_exe, 'rev-parse', '--verify', APPROVAL_EXPORT_BRANCH_REF + '^{commit}'], cwd=maprepo_local_path, check=True, stdout=subprocess.PIPE).stdout.decode('utf-8').strip()
+        os.makedirs(str(approval_output_folder), exist_ok=True)
+        bundle_path = Path(approval_output_folder).resolve().joinpath(APPROVAL_EXPORT_BUNDLE_FILENAME)
+        subprocess.run([tools.git_exe, 'bundle', 'create', str(bundle_path), APPROVAL_EXPORT_BRANCH_REF, '^' + base_commit], cwd=maprepo_local_path, check=True)
+    except subprocess.CalledProcessError as e:
+        print('Failed to export approved map commit: {0}'.format(str(e)), file=sys.stderr)
+        return MapSubmissionApprovalResult.FAILURE
     
+    approval_info = OrderedDict()
+    approval_info['version'] = 1
+    approval_info['repo'] = submission_repo
+    approval_info['map_name'] = map_name
+    approval_info['base_commit'] = base_commit
+    approval_info['commit'] = new_commit
+    approval_info['issue_number'] = gh_issue_obj['number']
+    approval_info['approve_comment_id'] = gh_comment_obj['id']
+    with open(Path(approval_output_folder).joinpath(APPROVAL_EXPORT_INFO_FILENAME), 'w', encoding='utf-8') as f:
+        json.dump(approval_info, f, indent=2)
+    
+    print('Exported approved map commit {0} (on top of {1}) for {2}'.format(new_commit, base_commit, submission_repo))
     return MapSubmissionApprovalResult.SUCCESS
 
 
-def process_map_submission_comment(map_repos_config_json_path: str, output_temp_folder: Path, gh_repo: str, gh_run_id: str, gh_issue_obj: dict, gh_comment_obj: dict | None = None, gen_assets_folder: Path | None = None, dry_run: bool = False, map_repo_management_token_provider: WZGithubAppTokenProvider | None = None) -> int:
+def process_map_submission_comment(map_repos_config_json_path: str, output_temp_folder: Path, gh_repo: str, gh_run_id: str, gh_issue_obj: dict, gh_comment_obj: dict | None = None, gen_assets_folder: Path | None = None, dry_run: bool = False, map_repo_management_token_provider: WZGithubAppTokenProvider | None = None, approval_output_folder: Path | None = None) -> int:
     
     if gh_issue_obj['state'] != 'open':
         print('Issue {0} is not open - ignoring'.format(gh_issue_obj['number']), file=sys.stderr)
@@ -979,7 +1027,7 @@ def process_map_submission_comment(map_repos_config_json_path: str, output_temp_
         if gh_comment_obj['body'].startswith("/replace "):
             return validate_gh_map_submission_comment(map_repos_config_json_path, output_temp_folder, gh_repo, gh_run_id, gh_issue_obj, gh_comment_obj, gen_assets_folder=gen_assets_folder, dry_run=dry_run)
         elif gh_comment_obj['body'].startswith("/approve"):
-            return handle_gh_map_submission_approval(map_repos_config_json_path, output_temp_folder, gh_repo, gh_run_id, gh_issue_obj, gh_comment_obj, dry_run, map_repo_management_token_provider)
+            return handle_gh_map_submission_approval(map_repos_config_json_path, output_temp_folder, gh_repo, gh_run_id, gh_issue_obj, gh_comment_obj, dry_run, map_repo_management_token_provider, approval_output_folder=approval_output_folder)
         else:
             # Ignore other comments
             return 0
@@ -999,6 +1047,7 @@ def main(argv):
     parser.add_argument('--gen-assets-folder', type=Path, required=False)
     parser.add_argument('--dry-run', action='store_true', required=False, help='Skip actions that would modify data on any repos, logging them instead')
     parser.add_argument('--ignore-missing-comment', action='store_true', required=False, help='Ignore if --gh-comment is specified but the file does not exist')
+    parser.add_argument('--approval-output-folder', type=Path, required=False, help='For /approve: instead of pushing, export the new map repo commit (git bundle + approval.json) to this folder, for push_approved_map_submission.py to verify and push from a separate job')
     
     args = parser.parse_args()
     
@@ -1026,7 +1075,7 @@ def main(argv):
     for x in WZ_GH_APP_SECRET_ENV_VARS:
         os.environ.pop(x, None)
     
-    result_code = process_map_submission_comment(args.map_repos_config, args.output_temp_folder, args.gh_repo, args.gh_run_id, gh_issue_obj, gh_comment_obj, args.gen_assets_folder, args.dry_run, map_repo_management_token_provider)
+    result_code = process_map_submission_comment(args.map_repos_config, args.output_temp_folder, args.gh_repo, args.gh_run_id, gh_issue_obj, gh_comment_obj, args.gen_assets_folder, args.dry_run, map_repo_management_token_provider, approval_output_folder=args.approval_output_folder)
     exit(result_code)
 
 if __name__ == "__main__":
