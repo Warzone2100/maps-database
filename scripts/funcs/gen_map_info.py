@@ -25,7 +25,7 @@ class MapRepoExternalTools:
 def generate_map_preview_png(map_package_fullpath: str, png_output_fullpath: str, tools: MapRepoExternalTools):
     maptools_genpreview_result = subprocess.run([tools.maptools_exe, 'package', 'genpreview', '--playercolors=wz', '--map-seed=0', map_package_fullpath, png_output_fullpath], stdout=subprocess.PIPE)
     if not maptools_genpreview_result.returncode == 0:
-        print('Warning: maptools package genpreview {0} command failed with exit code: {1}'.format(map_package, maptools_genpreview_result.returncode))
+        print('Warning: maptools package genpreview {0} command failed with exit code: {1}'.format(map_package_fullpath, maptools_genpreview_result.returncode))
         return False
     
     return True
@@ -33,7 +33,7 @@ def generate_map_preview_png(map_package_fullpath: str, png_output_fullpath: str
 def generate_map_terrain_png(map_package_fullpath: str, png_output_fullpath: str, tools: MapRepoExternalTools):
     maptools_genpreview_result = subprocess.run([tools.maptools_exe, 'package', 'genpreview', '--layers=terrain', '--map-seed=0', map_package_fullpath, png_output_fullpath], stdout=subprocess.PIPE)
     if not maptools_genpreview_result.returncode == 0:
-        print('Warning: maptools package genpreview {0} command failed with exit code: {1}'.format(map_package, maptools_genpreview_result.returncode))
+        print('Warning: maptools package genpreview {0} command failed with exit code: {1}'.format(map_package_fullpath, maptools_genpreview_result.returncode))
         return False
     
     return True

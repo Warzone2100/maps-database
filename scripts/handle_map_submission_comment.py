@@ -13,6 +13,8 @@ import hashlib
 import shutil
 import re
 import zipfile
+import base64
+import unicodedata
 import jwt # PyJWT
 import requests
 from enum import IntEnum
@@ -24,9 +26,39 @@ from pathlib import Path
 from funcs.gen_map_info import MapRepoExternalTools, generate_map_preview_png
 from funcs.dry_run_wrappers import subprocess_run_modification_cmd_wrapper
 from funcs.gh_app_token_provider import WZGithubAppTokenProvider
+from funcs.map_funcs import NAME_FORMAT_RE, MAX_ALLOWED_MAP_NAME_LENGTH
 from validate_new_map import validate_map, FailedToProcessMapError, MapReposConfig, MapValidationDetails, path_exists_case_insensitive, MapNameUniquenessCheck
 
 GH_REST_API_VERSION = '2022-11-28'
+
+WZ_GH_APP_SECRET_ENV_VARS = ['WZ_GH_APP_MAPREPO_MANAGER_APP_ID', 'WZ_GH_APP_MAPREPO_MANAGER_PRIVATE_KEY_SECRET']
+
+MAX_MAP_ATTACHMENT_DOWNLOAD_SIZE = 50 * 1024 * 1024
+HTTP_TIMEOUT_SECONDS = 60
+
+# Helpers for embedding untrusted text in bot comments.
+# NOTE: /approve parses data blocks back out of these comments,
+# so untrusted text must not be able to start a new line, close a code fence or inject HTML.
+
+def md_single_line(text) -> str:
+    return ''.join(' ' if (unicodedata.category(ch) in ('Cc', 'Cf', 'Zl', 'Zp')) else ch for ch in str(text))
+
+_MD_ESCAPE_RE = re.compile(r'([\\`*_{}\[\]<>()#+\-.!|~&"\'=:@$%^])')
+
+def md_escape_inline(text) -> str:
+    return _MD_ESCAPE_RE.sub(r'\\\1', md_single_line(text))
+
+def md_code_span(text) -> str:
+    content = md_single_line(text)
+    longest_run = max((len(m) for m in re.findall(r'`+', content)), default=0)
+    fence = '`' * (longest_run + 1)
+    return '{0} {1} {0}'.format(fence, content)
+
+def md_code_block_lines(lines: list[str], info_string: str = '') -> list[str]:
+    safe_lines = [md_single_line(line) for line in lines]
+    longest_run = max((len(m) for line in safe_lines for m in re.findall(r'`+', line)), default=0)
+    fence = '`' * max(3, longest_run + 1)
+    return [fence + info_string] + safe_lines + [fence]
 
 WZ_EXPECTED_VALIDATION_COMMENT_AUTHORS = [{
     'login': 'github-actions[bot]',
@@ -62,22 +94,35 @@ def dl_gh_attachment(url: str, gh_repo: str, output_path: Path) -> dict:
     sha512_hash = hashlib.sha512()
     
     # Verify expected issue attachment url format / location
+    # - no whitespace or control characters
+    if any(ch.isspace() or unicodedata.category(ch) in ('Cc', 'Cf') for ch in url):
+        raise ValueError('Unexpected characters in GitHub attachment URL: {0!r}'.format(url))
     split_dl_url = urlparse(url)
-    # -  url domain ends with [\.]?github.com
-    if not re.match(r'^(?:.*\.)?github.com(?:\:.*)?$', split_dl_url.netloc):
+    # - https, with no userinfo or port
+    if split_dl_url.scheme != 'https':
+        raise ValueError('Unexpected GitHub attachment URL scheme: {0}'.format(url))
+    if split_dl_url.username is not None or split_dl_url.password is not None or split_dl_url.port is not None:
         raise ValueError('Unexpected GitHub attachment URL: {0}'.format(url))
-    # - path begins with: {gh_repo}/files/
-    if (not re.match(r'^[/]?{0}/files/'.format(gh_repo), split_dl_url.path)) and (not re.match(r'^[/]?user-attachments/files/', split_dl_url.path)):
+    # - host is github.com (or a subdomain)
+    hostname = (split_dl_url.hostname or '').lower()
+    if not (hostname == 'github.com' or hostname.endswith('.github.com')):
+        raise ValueError('Unexpected GitHub attachment URL: {0}'.format(url))
+    # - path begins with: {gh_repo}/files/ or user-attachments/files/ (with no dot-segments)
+    if (not re.match(r'^/?{0}/files/'.format(re.escape(gh_repo)), split_dl_url.path)) and (not re.match(r'^/?user-attachments/files/', split_dl_url.path)):
         raise ValueError('Unexpected GitHub attachment URL path: {0}'.format(url))
-    
-    with requests.get(url, stream=True) as r:
+    if any(segment in ('.', '..') for segment in split_dl_url.path.split('/')):
+        raise ValueError('Unexpected GitHub attachment URL path: {0}'.format(url))
+
+    with requests.get(url, stream=True, timeout=HTTP_TIMEOUT_SECONDS) as r:
         r.raise_for_status()
         with open(output_path, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8*1024): 
+            for chunk in r.iter_content(chunk_size=8*1024):
                 if not chunk:
                     continue
-                
+
                 total_dl_size += len(chunk)
+                if total_dl_size > MAX_MAP_ATTACHMENT_DOWNLOAD_SIZE:
+                    raise ValueError('Attachment exceeds maximum allowed size ({0} bytes)'.format(MAX_MAP_ATTACHMENT_DOWNLOAD_SIZE))
                 f.write(chunk)
                 sha512_hash.update(chunk)
     
@@ -98,13 +143,15 @@ def verify_gh_user_has_permissions_on_repo(gh_repo: str, gh_username: str, requi
         session.headers.update({'Authorization': 'Bearer ' + gh_access_token_secret})
         session.headers.update({'X-GitHub-Api-Version': GH_REST_API_VERSION})
     
-        gh_permissions_query_response = session.get('https://api.github.com/repos/{0}/collaborators/{1}/permission'.format(gh_repo, gh_username), allow_redirects=True)
-        if not gh_permissions_query_response.status_code != requests.codes.ok:
-            print('Failed to query permissions with status: {0}'.format(gh_permissions_query_response.status_code), file=sys.stderr)
-            return False
-        result = gh_permissions_query_response.json()
-        session.close()
-        gh_access_token_secret = None
+        try:
+            gh_permissions_query_response = session.get('https://api.github.com/repos/{0}/collaborators/{1}/permission'.format(gh_repo, gh_username), allow_redirects=True, timeout=HTTP_TIMEOUT_SECONDS)
+            if gh_permissions_query_response.status_code != requests.codes.ok:
+                print('Failed to query permissions with status: {0}'.format(gh_permissions_query_response.status_code), file=sys.stderr)
+                return False
+            result = gh_permissions_query_response.json()
+        finally:
+            session.close()
+            gh_access_token_secret = None
     
     else:
         # Otherwise just default to using gh CLI to issue the API call
@@ -175,7 +222,9 @@ def parse_gh_map_submission_issue(gh_issue_obj: dict) -> WZGitHubMapSubmissionDe
         found_urls = parse_md_url_from_text(body_upload_map_contents)
         if len(found_urls) != 1:
             raise ValueError('Expecting one map .zip attachment - {0} found'.format(len(found_urls)))
-    
+    else:
+        raise ValueError('Unable to find "Upload Map" section')
+
     # - Description body (for placing in README.md)
     pattern=r'(?sm)^### Map Description(?: \(optional\))?[\r\n]+(^```text)?[\r\n]+(.*?)[\r\n]*^(```)?[\r\n]*(?=^### |\Z)'
     match = re.search(pattern, gh_issue_body)
@@ -281,20 +330,21 @@ def build_map_submission_analysis_response(map_archive_path: Path, map_dl_detail
     
     map_dl_file_name = get_dl_filename_from_url(map_dl_details['url'])
     
+    # NOTE: Everything derived from the submitted map or issue is untrusted, and must go through the md_* helpers
     try:
-        result_lines.append('## {0} Map: {1}'.format(emoji_status_symbol, validation_details.map_info_json['name']))
+        result_lines.append('## {0} Map: {1}'.format(emoji_status_symbol, md_escape_inline(validation_details.map_info_json['name'])))
     except KeyError:
         result_lines.append('## {0} Map: (missing `name` property)'.format(emoji_status_symbol))
         pass
     if validation_details.passed_validation():
         try:
-            result_lines.append('by: {0}'.format(validation_details.map_info_json['author']['name']))
+            result_lines.append('by: {0}'.format(md_escape_inline(validation_details.map_info_json['author']['name'])))
         except KeyError:
             result_lines.append('- by: Anonymous (missing `author` property)')
             pass
     result_lines.append('')
     result_lines.append('')
-    result_lines.append('- 📦 [Map Package (`{0}`)]({1})'.format(map_dl_file_name, map_dl_details['url']))
+    result_lines.append('- 📦 [Map Package ({0})](<{1}>)'.format(md_code_span(map_dl_file_name), md_single_line(map_dl_details['url']).replace('<', '%3C').replace('>', '%3E')))
     if gh_run_id:
         result_lines.append('- 🖼 [Get Map Preview](https://github.com/{0}/actions/runs/{1}#artifacts)'.format(gh_repo, gh_run_id))
     result_lines.append('')
@@ -305,26 +355,17 @@ def build_map_submission_analysis_response(map_archive_path: Path, map_dl_detail
     
     if len(validation_details.info_validation_result.errors) > 0:
         result_lines.append('### Errors:')
-        result_lines.append('```')
-        for error in validation_details.info_validation_result.errors:
-            result_lines.append(f'\N{cross mark} {error}')
-        result_lines.append('```')
+        result_lines.extend(md_code_block_lines([f'\N{cross mark} {error}' for error in validation_details.info_validation_result.errors]))
         result_lines.append('')
-    
+
     if len(validation_details.info_validation_result.errors_non_fatal) > 0:
         result_lines.append('### Non-Fatal Errors:')
-        result_lines.append('```')
-        for error in validation_details.info_validation_result.errors_non_fatal:
-            result_lines.append(f'\u26A0\uFE0F {error}')
-        result_lines.append('```')
+        result_lines.extend(md_code_block_lines([f'\u26A0\uFE0F {error}' for error in validation_details.info_validation_result.errors_non_fatal]))
         result_lines.append('')
 
     if len(validation_details.info_validation_result.warnings) > 0:
         result_lines.append('### Warnings:')
-        result_lines.append('```')
-        for warning in validation_details.info_validation_result.warnings:
-            result_lines.append(warning)
-        result_lines.append('```')
+        result_lines.extend(md_code_block_lines(validation_details.info_validation_result.warnings))
         result_lines.append('')
     
     recommendation_lines = []
@@ -338,12 +379,12 @@ def build_map_submission_analysis_response(map_archive_path: Path, map_dl_detail
         if gh_run_id:
             recommendation_lines.append('  - For convenience, a copy of the map that has been converted to the latest map format is available [here](https://github.com/{0}/actions/runs/{1}#artifacts) as an artifact named `map-converted`.'.format(gh_repo, gh_run_id))
     if validation_details.name_conflict:
-        recommendation_lines.append('- Rename the map (conflicts with a map that already has the name `{0}`)'.format(validation_details.map_info_json['name']))
-        recommendation_lines.append('  - If this is a new version, you can append a version (ex. `{0}-v2`)'.format(validation_details.map_info_json['name']))
-        recommendation_lines.append('  - If this is a map made (or modified) by a different creator, you can prepend/append the additional author\'s name: (ex. `Author-{0}`)'.format(validation_details.map_info_json['name']))
+        recommendation_lines.append('- Rename the map (conflicts with a map that already has the name {0})'.format(md_code_span(validation_details.map_info_json['name'])))
+        recommendation_lines.append('  - If this is a new version, you can append a version (ex. {0})'.format(md_code_span('{0}-v2'.format(validation_details.map_info_json['name']))))
+        recommendation_lines.append('  - If this is a map made (or modified) by a different creator, you can prepend/append the additional author\'s name: (ex. {0})'.format(md_code_span('Author-{0}'.format(validation_details.map_info_json['name']))))
     if validation_details.mapdir_folder_name_mismatch:
         recommendation_lines.append('- Ensure the map folder matches the map name')
-        recommendation_lines.append('  - i.e. A map named "{0}" should be in the repo at a path of "maps/{0}"'.format(validation_details.map_info_json['name']))
+        recommendation_lines.append('  - i.e. A map named {0} should be in the repo at a path of {1}'.format(md_code_span(validation_details.map_info_json['name']), md_code_span('maps/{0}'.format(validation_details.map_info_json['name']))))
     
     if len(recommendation_lines) > 0:
         result_lines.append('### Recommendations:')
@@ -388,15 +429,13 @@ def build_map_submission_analysis_response(map_archive_path: Path, map_dl_detail
         result_lines.append('')
         result_lines.append('<summary>Map Package Contents:</summary>')
         result_lines.append('')
-        result_lines.append('```')
-        num_zip_lines_printed = 0
+        zip_listing_lines = []
         for map_zip_entry in map_zip_contents:
-            result_lines.append('- ' + ((map_zip_entry[:80] + '...') if len(map_zip_entry) > 83 else map_zip_entry))
-            num_zip_lines_printed += 1
-            if num_zip_lines_printed >= 100:
-                result_lines.append('... truncated ... ({0} total items!)'.format(len(map_zip_contents)))
+            zip_listing_lines.append('- ' + ((map_zip_entry[:80] + '...') if len(map_zip_entry) > 83 else map_zip_entry))
+            if len(zip_listing_lines) >= 100:
+                zip_listing_lines.append('... truncated ... ({0} total items!)'.format(len(map_zip_contents)))
                 break
-        result_lines.append('```')
+        result_lines.extend(md_code_block_lines(zip_listing_lines))
         result_lines.append('')
         result_lines.append('</details>')
         result_lines.append('')
@@ -596,6 +635,8 @@ class WZMapSubmissionValidationCommentDetails:
         # ```
         # <!-- End: AnalysisDetails -->
         REGEX_FIND_ANALYSIS_DETAILS_JSON = r'(?sm)^<!-- Begin: AnalysisDetails -->[\s]+^```json[\s]*?^(.*?)[\s]+^```[\s]*?(?=^<!-- End: AnalysisDetails -->)'
+        # NOTE: Untrusted text may precede this block (and re.search returns the first match)
+        WZMapSubmissionValidationCommentDetails._require_single_marker(bot_validation_comment_obj['body'], 'AnalysisDetails')
         match = re.search(REGEX_FIND_ANALYSIS_DETAILS_JSON, bot_validation_comment_obj['body'])
         if not match:
             raise ValueError('ERROR: Unable to find AnalysisDetails json')
@@ -614,6 +655,7 @@ class WZMapSubmissionValidationCommentDetails:
         # ```
         # <!-- End: MapInfoJSON -->
         REGEX_FIND_MAP_INFO_JSON = r'(?sm)^<!-- Begin: MapInfoJSON -->[\s]+^```json[\s]*?^(.*?)[\s]+^```[\s]*?(?=^<!-- End: MapInfoJSON -->)'
+        WZMapSubmissionValidationCommentDetails._require_single_marker(bot_validation_comment_obj['body'], 'MapInfoJSON')
         match = re.search(REGEX_FIND_MAP_INFO_JSON, bot_validation_comment_obj['body'])
         if not match:
             raise ValueError('ERROR: Unable to find MapInfoJSON')
@@ -628,6 +670,13 @@ class WZMapSubmissionValidationCommentDetails:
             except ValueError:
                 pass
         
+    @staticmethod
+    def _require_single_marker(body: str, marker_name: str):
+        for marker in ['<!-- Begin: {0} -->'.format(marker_name), '<!-- End: {0} -->'.format(marker_name)]:
+            num_occurrences = body.count(marker)
+            if num_occurrences != 1:
+                raise ValueError('ERROR: Expected exactly one "{0}" marker in validation comment (found: {1})'.format(marker, num_occurrences))
+
     def get_description_body(self) -> str | None:
         if 'body' not in self.description:
             return None
@@ -682,9 +731,9 @@ def find_approved_gh_issue_validation_comment(gh_repo: str, gh_issue_obj: dict, 
     all_comments_results = fixup_gh_paginate_results(gh_get_all_issue_comments_result.stdout.decode('utf-8'))
     issue_comments = json.loads(all_comments_results)
     
-    # sort comments by created_at (most recent first)
-    issue_comments = sorted(issue_comments, key=lambda x: datetime.strptime(x['created_at'],"%Y-%m-%dT%H:%M:%SZ"), reverse=True) # ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ)
-    
+    # sort comments by created_at, then id (most recent first)
+    issue_comments = sorted(issue_comments, key=lambda x: (datetime.strptime(x['created_at'],"%Y-%m-%dT%H:%M:%SZ"), int(x['id'])), reverse=True) # ISO 8601 format (YYYY-MM-DDTHH:MM:SSZ)
+
     # find the startPos for the search (the gh_comment_obj's comment's index)
     curr_comment_index = None
     for i, comment in enumerate(issue_comments):
@@ -693,9 +742,9 @@ def find_approved_gh_issue_validation_comment(gh_repo: str, gh_issue_obj: dict, 
             break
     if curr_comment_index is None:
         raise ValueError('ERROR: Failed to find current comment (id: {0}) in issue ({1}) comments'.format(current_comment_id, current_issue_number))
-    
-    # search from gh_comment_obj to find the most recent comment posted by the bot that starts with <!-- Map Validation -->
-    for i, comment in enumerate(issue_comments, curr_comment_index):
+
+    # search comments posted before gh_comment_obj for the most recent one by the bot that starts with <!-- Map Validation -->
+    for comment in issue_comments[curr_comment_index + 1:]:
         if comment['body'].startswith('<!-- Map Validation -->'):
             # Found likely map validation comment
             # Verify it was posted by an expected author (bot)
@@ -707,6 +756,19 @@ def find_approved_gh_issue_validation_comment(gh_repo: str, gh_issue_obj: dict, 
     
     # did not find a match
     raise ValueError('ERROR: Failed to find validation results in issue ({0}) comments'.format(current_issue_number))
+
+def git_env_with_github_token(token: str) -> dict:
+    env = os.environ.copy()
+    try:
+        idx = int(env.get('GIT_CONFIG_COUNT', '0') or '0')
+    except ValueError:
+        idx = 0
+    basic_auth = base64.b64encode('x-access-token:{0}'.format(token).encode('utf-8')).decode('ascii')
+    env['GIT_CONFIG_KEY_{0}'.format(idx)] = 'http.https://github.com/.extraheader'
+    env['GIT_CONFIG_VALUE_{0}'.format(idx)] = 'AUTHORIZATION: basic {0}'.format(basic_auth)
+    env['GIT_CONFIG_COUNT'] = str(idx + 1)
+    env['GIT_TERMINAL_PROMPT'] = '0'
+    return env
 
 class MapSubmissionApprovalResult(IntEnum):
     SUCCESS = 0
@@ -736,7 +798,7 @@ def handle_gh_map_submission_approval(map_repos_config_json_path: str, output_te
     try:
         approved_comment_obj = find_approved_gh_issue_validation_comment(gh_repo, gh_issue_obj, gh_comment_obj, tools)
     except ValueError as e:
-        print('ERROR: Failed to fetch approved validation with: {1}'.format(str(e)), file=sys.stderr)
+        print('ERROR: Failed to fetch approved validation with: {0}'.format(str(e)), file=sys.stderr)
         return MapSubmissionApprovalResult.FAILURE
     approved_comment_id = approved_comment_obj['id']
     
@@ -787,7 +849,12 @@ def handle_gh_map_submission_approval(map_repos_config_json_path: str, output_te
         return MapSubmissionApprovalResult.FAILURE
     
     # Use maptools to convert the map to the latest format as a map folder (NOTE: could use --preserve-mods in the future once we support flat map stats / texture / etc modifications?)
-    temp_converted_map_folder = output_temp_folder.joinpath('converted', approved_map_info.map_info['name'])
+    # NOTE: The name comes from the comment and is used as a path (removed below if it exists)
+    approved_map_name = approved_map_info.map_info.get('name') if isinstance(approved_map_info.map_info, dict) else None
+    if not isinstance(approved_map_name, str) or len(approved_map_name) > MAX_ALLOWED_MAP_NAME_LENGTH or not NAME_FORMAT_RE.match(approved_map_name):
+        print('ERROR: Invalid map name in approved validation comment: {0!r}'.format(approved_map_name), file=sys.stderr)
+        return MapSubmissionApprovalResult.FAILURE
+    temp_converted_map_folder = output_temp_folder.joinpath('converted', approved_map_name)
     if temp_converted_map_folder.is_dir():
         # Directory already exists - delete it or maptools command will fail
         shutil.rmtree(temp_converted_map_folder, ignore_errors=True)
@@ -796,6 +863,14 @@ def handle_gh_map_submission_approval(map_repos_config_json_path: str, output_te
         print('Failed to unpack / convert map', file=sys.stderr)
         return MapSubmissionApprovalResult.FAILURE_MAP_CONVERSION
     
+    # copy_tree follows symlinks, so only allow regular files and folders
+    for dirpath, dirnames, filenames in os.walk(temp_converted_map_folder):
+        for entry_name in dirnames + filenames:
+            entry_path = os.path.join(dirpath, entry_name)
+            if os.path.islink(entry_path) or not (os.path.isfile(entry_path) or os.path.isdir(entry_path)):
+                print('ERROR: Converted map contains an unexpected (non-regular) file: {0}'.format(os.path.relpath(entry_path, temp_converted_map_folder)), file=sys.stderr)
+                return MapSubmissionApprovalResult.FAILURE_MAP_CONVERSION
+
     # Double-check: Validate the converted map
     uniqueness_checker = MapNameUniquenessCheck(output_temp_folder.joinpath('tmp-repos-check'))
     validation_details = validate_map(temp_converted_map_folder, True, repos_config, tools, uniqueness_checker, enforce_format_checks=True)
@@ -854,26 +929,32 @@ def handle_gh_map_submission_approval(map_repos_config_json_path: str, output_te
         subprocess.run([tools.git_exe, 'commit', '-a', '--author={0}'.format(commit_author), '-m', commit_title, '-m', commit_msg], cwd=maprepo_local_path, check=True)
     except subprocess.CalledProcessError as e:
         print(str(e), file=sys.stderr)
-        return MapSubmissionApprovalResult.FAILED
-    
+        return MapSubmissionApprovalResult.FAILURE
+
     # Push the new commit to the appropriate map repo’s main branch (potentially using an access token)
-    map_repo_push_auth_prefix = ''
+    git_push_env = None
+    map_push_access_token = None
     if map_repo_management_token_provider:
         if not dry_run:
             map_repo_split = submission_repo.split('/', 1)
-            map_push_access_token = map_repo_management_token_provider.get_access_token(map_repo_split[0], map_repo_split[1], tools)
+            map_push_access_token = map_repo_management_token_provider.get_access_token(map_repo_split[0], map_repo_split[1], tools, permissions={'contents': 'write'})
             if not map_push_access_token:
-                return MapSubmissionApprovalResult.FAILED
-            map_repo_push_auth_prefix = 'x-access-token:{0}@'.format(map_push_access_token)
-            map_push_access_token = None
+                return MapSubmissionApprovalResult.FAILURE
+            git_push_env = git_env_with_github_token(map_push_access_token)
         else:
             print('DRYRUN - Would request access token from token provider')
-    
+
     if not dry_run:
-        git_push_to_map_repo_result = subprocess.run([tools.git_exe, 'push', 'https://{0}github.com/{1}.git'.format(map_repo_push_auth_prefix, submission_repo), 'main:main'], cwd=maprepo_local_path)
+        try:
+            git_push_to_map_repo_result = subprocess.run([tools.git_exe, 'push', 'https://github.com/{0}.git'.format(submission_repo), 'main:main'], cwd=maprepo_local_path, env=git_push_env)
+        finally:
+            git_push_env = None
+            if map_push_access_token:
+                WZGithubAppTokenProvider.revoke_access_token(map_push_access_token)
+                map_push_access_token = None
         if git_push_to_map_repo_result.returncode != 0:
             print('Failed to push to {0}'.format(submission_repo), file=sys.stderr)
-            return MapSubmissionApprovalResult.FAILED
+            return MapSubmissionApprovalResult.FAILURE
     else:
         print('DRYRUN - Would push new commit in {0} to: https://github.com/{1}.git:main'.format(maprepo_local_path, submission_repo))
     
@@ -939,8 +1020,11 @@ def main(argv):
             exit(1)
     
     map_repo_management_token_provider = None
-    if all(x in os.environ for x in ['WZ_GH_APP_MAPREPO_MANAGER_APP_ID', 'WZ_GH_APP_MAPREPO_MANAGER_PRIVATE_KEY_SECRET']):
+    if all(os.environ.get(x) for x in WZ_GH_APP_SECRET_ENV_VARS):
         map_repo_management_token_provider = WZGithubAppTokenProvider(os.getenv('WZ_GH_APP_MAPREPO_MANAGER_APP_ID'), os.getenv('WZ_GH_APP_MAPREPO_MANAGER_PRIVATE_KEY_SECRET').encode('utf-8'))
+    # Keep the App credentials out of child processes (maptools, git, gh)
+    for x in WZ_GH_APP_SECRET_ENV_VARS:
+        os.environ.pop(x, None)
     
     result_code = process_map_submission_comment(args.map_repos_config, args.output_temp_folder, args.gh_repo, args.gh_run_id, gh_issue_obj, gh_comment_obj, args.gen_assets_folder, args.dry_run, map_repo_management_token_provider)
     exit(result_code)

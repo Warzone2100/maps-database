@@ -22,7 +22,8 @@ expected_license_expressions = [
 ]
 
 DATE_FORMAT_RE = re.compile("^(?P<year>\d{3}\d+)-(?P<month>(0[1-9])|(1[0-2]))-(?P<day>0[1-9]|[1-2][0-9]|3[0-1])( (0[1-9]|1[0-9]|2[0-3]):(0[1-9]|[1-5][0-9]):(0[1-9]|[1-5][0-9]))?")
-NAME_FORMAT_RE = re.compile("^[A-Za-z0-9\-_]+$")
+# NOTE: \Z, as $ also matches before a trailing newline
+NAME_FORMAT_RE = re.compile(r"^[A-Za-z0-9\-_]+\Z")
 
 class MapInfoValidationResult:
     def __init__(self, warnings: list, errors: list, passedFormatChecks: bool, errors_non_fatal: list[str] = []):
@@ -127,9 +128,9 @@ def validate_map_info(map_info_json: dict, enforce_format_checks: bool=True, war
             created_datetime = datetime(int(created_check_result.group('year')), int(created_check_result.group('month')), int(created_check_result.group('day')))
             delta_now = datetime.now() - created_datetime
             if delta_now.days < -1:
-                errors.append("'created' ('{0}') is in the future??", map_info_json['created'])
+                errors.append("'created' ('{0}') is in the future??".format(map_info_json['created']))
             if int(created_check_result.group('year')) < 1999:
-                errors.append("'created' ('{0}') can't be before the creation of the game", map_info_json['created'])
+                errors.append("'created' ('{0}') can't be before the creation of the game".format(map_info_json['created']))
         else:
             errors.append("Invalid 'created' date format: {0}".format(map_info_json['created']))
     else:
