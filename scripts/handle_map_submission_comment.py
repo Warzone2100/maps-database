@@ -555,7 +555,7 @@ def validate_gh_map_submission_comment(map_repos_config_json_path: str, output_t
         # Generate a converted map package, if the map passed validation but needs conversion (for manual testing, if desired)
         if validation_details.passed_validation() and validation_details.needs_format_conversion():
             converted_map_output_path = gen_assets_folder.joinpath('{0}-converted.wz'.format(validation_details.map_info_json['name']))
-            maptools_convert_result = subprocess.run([tools.maptools_exe, 'package', 'convert', '--levelformat=latest', '--format=latest', temp_archive_dl_path, str(converted_map_output_path)])
+            maptools_convert_result = tools.run_maptools(['package', 'convert', '--levelformat=latest', '--format=latest', temp_archive_dl_path, str(converted_map_output_path)], inputs=[temp_archive_dl_path], outputs=[converted_map_output_path])
             if maptools_convert_result.returncode != 0:
                 print('WARNING: Failed to convert map: {0}'.format(validation_details.map_info_json['name']), file=sys.stderr)
                 # But continue outputting results anyway
@@ -873,7 +873,8 @@ def handle_gh_map_submission_approval(map_repos_config_json_path: str, output_te
     if temp_converted_map_folder.is_dir():
         # Directory already exists - delete it or maptools command will fail
         shutil.rmtree(temp_converted_map_folder, ignore_errors=True)
-    maptools_convert_result = subprocess.run([tools.maptools_exe, 'package', 'convert', '--levelformat=latest', '--format=latest', '--output-uncompressed', temp_dl_map_archive, temp_converted_map_folder])
+    os.makedirs(str(temp_converted_map_folder.parent), exist_ok=True)
+    maptools_convert_result = tools.run_maptools(['package', 'convert', '--levelformat=latest', '--format=latest', '--output-uncompressed', temp_dl_map_archive, temp_converted_map_folder], inputs=[temp_dl_map_archive], outputs=[temp_converted_map_folder])
     if maptools_convert_result.returncode != 0:
         print('Failed to unpack / convert map', file=sys.stderr)
         return MapSubmissionApprovalResult.FAILURE_MAP_CONVERSION

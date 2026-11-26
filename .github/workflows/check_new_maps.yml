@@ -21,7 +21,20 @@ jobs:
     runs-on: ubuntu-latest
     name: 'check.new.maps'
 
+    env:
+      WZ_MAPTOOLS_SANDBOX: bwrap
+
     steps:
+      - name: Prepare maptools sandbox (bubblewrap)
+        run: |
+          # bubblewrap needs unprivileged user namespaces (restricted by AppArmor on Ubuntu 24.04+)
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          if ! command -v bwrap > /dev/null; then
+            sudo apt-get update -q
+            sudo apt-get install -y -q --no-install-recommends bubblewrap
+          fi
+          bwrap --version
+
       - uses: actions/checkout@v4
         with:
           path: 'main'
@@ -45,6 +58,7 @@ jobs:
         run: |
           pip install -r "${MAP_DB_REPO_PATH}/scripts/requirements.txt"
           source "${MAP_DB_REPO_PATH}/.ci/github/install_maptools.sh"
+          python3 "${MAP_DB_REPO_PATH}/scripts/funcs/maptools_runner.py" --check --maptools "${MAPTOOLS_BIN_DIR}/maptools"
           
       - name: Determine config
         id: config

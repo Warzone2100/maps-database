@@ -15,15 +15,19 @@ from collections import OrderedDict
 from pathlib import Path
 from natsort import natsorted
 from .map_funcs import validate_map_info, MapInfoValidationResult, convert_map_info_date_to_yyyy_mm_dd
+from . import maptools_runner
 
 class MapRepoExternalTools:
     def __init__(self):
         self.git_exe = shutil.which('git')
         self.gh_cli_exe = shutil.which('gh')
         self.maptools_exe = shutil.which('maptools') or shutil.which('maptools', path=os.getcwd())
+    
+    def run_maptools(self, args: list, inputs: list = [], outputs: list = [], **kwargs) -> subprocess.CompletedProcess:
+        return maptools_runner.run_maptools(self.maptools_exe, args, inputs=inputs, outputs=outputs, **kwargs)
 
 def generate_map_preview_png(map_package_fullpath: str, png_output_fullpath: str, tools: MapRepoExternalTools):
-    maptools_genpreview_result = subprocess.run([tools.maptools_exe, 'package', 'genpreview', '--playercolors=wz', '--map-seed=0', map_package_fullpath, png_output_fullpath], stdout=subprocess.PIPE)
+    maptools_genpreview_result = tools.run_maptools(['package', 'genpreview', '--playercolors=wz', '--map-seed=0', map_package_fullpath, png_output_fullpath], inputs=[map_package_fullpath], outputs=[png_output_fullpath], stdout=subprocess.PIPE)
     if not maptools_genpreview_result.returncode == 0:
         print('Warning: maptools package genpreview {0} command failed with exit code: {1}'.format(map_package_fullpath, maptools_genpreview_result.returncode))
         return False
@@ -31,7 +35,7 @@ def generate_map_preview_png(map_package_fullpath: str, png_output_fullpath: str
     return True
 
 def generate_map_terrain_png(map_package_fullpath: str, png_output_fullpath: str, tools: MapRepoExternalTools):
-    maptools_genpreview_result = subprocess.run([tools.maptools_exe, 'package', 'genpreview', '--layers=terrain', '--map-seed=0', map_package_fullpath, png_output_fullpath], stdout=subprocess.PIPE)
+    maptools_genpreview_result = tools.run_maptools(['package', 'genpreview', '--layers=terrain', '--map-seed=0', map_package_fullpath, png_output_fullpath], inputs=[map_package_fullpath], outputs=[png_output_fullpath], stdout=subprocess.PIPE)
     if not maptools_genpreview_result.returncode == 0:
         print('Warning: maptools package genpreview {0} command failed with exit code: {1}'.format(map_package_fullpath, maptools_genpreview_result.returncode))
         return False
@@ -71,7 +75,7 @@ def generate_release_maps_info(assets_folder: str, map_repo_name: str, release_t
         map_package_fullpath = os.path.join(assets_folder, map_package)
         
         # Extract map info
-        maptools_info_result = subprocess.run([tools.maptools_exe, 'package', 'info', '--map-seed=0', map_package_fullpath], stdout=subprocess.PIPE)
+        maptools_info_result = tools.run_maptools(['package', 'info', '--map-seed=0', map_package_fullpath], inputs=[map_package_fullpath], stdout=subprocess.PIPE)
         if not maptools_info_result.returncode == 0:
             print('Error: {0} - maptools package info command failed with exit code: {1}'.format(map_package, maptools_info_result.returncode))
             continue
